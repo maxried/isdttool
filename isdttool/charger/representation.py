@@ -9,7 +9,10 @@ from typing import Tuple, Optional, Union, Dict, Any
 
 def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
     """
-    This function returns a dict which corresponds to the packet. Might be wrong sometimes.
+    Return a dict which corresponds to the packet.
+
+    Might be wrong sometimes.
+
     :param packet: The payload as retrieved by read_packet
     :return: A dict with self explaining keys.
     """
@@ -251,6 +254,7 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
 def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]]) -> str:
     """
     Convert a packet to a human readable string.
+    
     :param response: The packet data as received by read_packet, or preparsed as Dict.
     :return: A human readable string.
     """

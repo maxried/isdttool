@@ -2,6 +2,7 @@
 # coding=utf-8
 
 """Retrieve measurements, and such from an ISDT charger."""
+
 import argparse
 import sys
 from argparse import ArgumentParser
@@ -20,7 +21,8 @@ from isdttool.firmware import decrypt_firmware_image, print_firmware_info
 
 def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
     """
-    Decrypts the firmware file, and shows the checksums.
+    Decrypt the firmware file, and show the checksums.
+
     :param encrypted: IO (aka file) to read the fw from
     :param output: IO (aka file) to write the fw to
     """
@@ -33,7 +35,8 @@ def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
 def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
         -> Callable[[Dict[str, Union[str, int, bool]], Dict[str, Union[str, int, bool]]], None]:
     """
-    Returns a Callable suitable to be a callback function for Charger.monitor_state.
+    Return a Callable suitable to be a callback function for Charger.monitor_state.
+
     :param only_interesting: Only run command if a human-readable message is available. Useful for
     instant messaging.
     :param command: Command to call in shell if something happened.
@@ -44,7 +47,8 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
     def handle_monitor_state_event(last_state: Dict[str, Union[str, int, bool]],
                                    event: Dict[str, Union[str, int, bool]]) -> None:
         """
-        Handles an event by calling a command in the shell with an enriched environment.
+        Handle an event by calling a command in the shell with an enriched environment.
+
         :param last_state: The state before the event occurred.
         :param event: The event dictionary, describing the reason as well as providing the
         packet indicating the change.
@@ -112,11 +116,14 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
 
 
 def get_argument_parser() -> ArgumentParser:
-    """Constructs an appropriate ArgumentParser."""
-
+    """Construct an appropriate ArgumentParser."""
     def hex_int(x: str) -> int:
-        """Helper function to allow the input of non-prefixed hex
-        integers which is the common representation for USB IDs. """
+        """
+        Parse hex strings as if they were prefixed with `0x`.
+
+        This is the common representation for USB IDs.
+         :param x: Hex string without the leading `0x`.
+        """
         return int(x, 16)
 
     parser = ArgumentParser(description='Tool to interact with ISDT C4, and A4 chargers, maybe '
@@ -240,7 +247,7 @@ def get_argument_parser() -> ArgumentParser:
 
 
 def main() -> None:
-    """Entry point."""
+    """Setup argument parser, and run."""
     parser = get_argument_parser()
     a = parser.parse_args()
 
@@ -322,5 +329,5 @@ def main() -> None:
 
 
 def tool_entrypoint() -> None:
-    """The sole reason for this is to wrap the main function for setup.py"""
+    """The sole reason for this is to wrap the main function for setup.py."""
     main()

@@ -13,11 +13,14 @@ from .charger.representation import parse_packet
 
 
 class MyTestCase(unittest.TestCase):
+    """These are test cases for protocol decoding."""
+
     def setUp(self) -> None:
-        """Enables verbose protocol debugging"""
+        """Enable verbose protocol debugging during setup."""
         set_debug(True)
 
     def test_a4_version(self) -> None:
+        """Test if the response of a version request of an A4 charger can be parsed."""
         charger: Charger = Charger(None)
         payload: List[bytearray] = [bytearray(b'\x02\x2d\xaa\x21\x27\xe1\x41\x34\x00\x00\x00\x00'
                                               b'\x00\x00\x01\x02\x00\x00\x01\x00\x00\x01\x01\x00'
@@ -27,18 +30,19 @@ class MyTestCase(unittest.TestCase):
                                               b'\x00\x00\x00\x00')]
         self.assertIsNotNone(parse_packet(charger.read_packet(payload)))
 
-    def test_real_world_packet(self) -> None:
+    def test_real_world_metrics_response(self) -> None:
+        """Test if a metrics packet can be read, and parsed."""
         charger: Charger = Charger(None)
-
         print('Testing captured frame')
         payload: List[bytearray] = [
             bytearray(b'\x02 \xaa!\x1a\xdf\x00\x04\x07\x01")d\x00\x00\x00\x009\x00\x00\x00`\x02'
                       b'\xf0\x00\x00\x00\xc0\x01\x00\x00!\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
                       b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
                       b'\x00\x00\x00\x00')]
-        self.assertIsNotNone(charger.read_packet(payload))
+        self.assertIsNotNone(parse_packet(charger.read_packet(payload)))
 
     def test_protocol_decode_long(self) -> None:
+        """Pack, and unpack a long payload, test if they are equal."""
         charger: Charger = Charger(None)
 
         print('Testing long frame')
@@ -48,6 +52,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(payload, decoded_payload)
 
     def test_protocol_decode_small(self) -> None:
+        """Pack, and unpack a short payload, test if they are equal."""
         charger: Charger = Charger(None)
 
         print('Testing small frame')
@@ -57,6 +62,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(payload, decoded_payload)
 
     def test_escaping(self) -> None:
+        """Escape, and unescape a payload, test if they are equal."""
         print('Testing escaping, and un-escaping the payload')
         payload = bytearray()
         for i in range(0, 255):
@@ -65,6 +71,7 @@ class MyTestCase(unittest.TestCase):
                          payload)
 
     def test_broken_sync(self) -> None:
+        """Test a packet with broken synchronisation."""
         print('Testing broken sync')
         payload = bytearray(b'\x01\x02\xAA\xAA\xAA\x01')
         self.assertEqual(len(__unescape_synchronization__(payload)), 4)
@@ -77,6 +84,11 @@ class MyTestCase(unittest.TestCase):
     #     __unescape_synchronization__(payload)
 
     def test_write_block1(self) -> None:
+        """
+        Test a multi frame packet captured during firmware update, verify against firmware.
+
+        Test 1/4
+        """
         print('Testing larger packet captured from the official firmware updater')
         capture: List[bytearray] = [
             bytearray(b'\x01\x3E\xAA\x12\x86\xF4\x00\x00\x40\x00\x08\x90\x1C\x00\x20\x49\x90\x03'
@@ -105,6 +117,11 @@ class MyTestCase(unittest.TestCase):
                                    b'\x11\x75\x03\x08\x15\x75\x03\x08'))
 
     def test_write_block2(self) -> None:
+        """
+        Test a multi frame packet captured during firmware update, verify against firmware.
+
+        Test 2/4
+        """
         print('Testing larger packet captured from the official firmware updater 2')
         charger: Charger = Charger(None)
         capture: List[bytearray] = [
@@ -132,6 +149,12 @@ class MyTestCase(unittest.TestCase):
                                    b'\x7D\x00\x4F\x20\x0E\x70\x07\xD0'))
 
     def test_write_block_aa(self) -> None:
+        """
+        Test a multi frame packet captured during firmware update, verify against firmware.
+
+        This one is special because it also has 0xAA in the payload.
+        Test 3/4
+        """
         print('Testing large packet captured with 0xAA in payload.')
         charger: Charger = Charger(None)
         capture: List[bytearray] = [
@@ -159,6 +182,11 @@ class MyTestCase(unittest.TestCase):
                                    b'\x44\x43\x00\x00\x7f\x00\x00\x00'))
 
     def test_large_packet_for_firmware_writing(self) -> None:
+        """
+        Generate multi frame firmware update packets, and test them against what the updater does.
+
+        Test 4/4
+        """
         print('Test the creation of real world update packets')
         payload_in: bytearray = bytearray(b'\xf4\x00\x00\x43\x00\x08\x01\xe5\x00\x77\x01\x00\x00'
                                           b'\x3e\x10\x00\x0b\x80\x00\x05\xf1\x00\x00\xe7\x00\x00'

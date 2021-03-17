@@ -1,7 +1,11 @@
 # coding=utf-8
 
-"""This file contains functions to parse incoming packets, and to construct outgoing packets.
-It cares about checksums, and stuff."""
+"""
+This file contains functions to parse incoming packets, and to construct outgoing packets.
+
+It cares about checksums, and stuff.
+"""
+
 import sys
 from typing import Optional, List, Tuple
 
@@ -15,6 +19,7 @@ from .representation import parse_packet
 def debug_log(*args, **kwargs) -> None:
     """
     Wrapper around print that prints to stderr, and is silenced if debug_mode is not True.
+
     :param args: positional args for print
     :param kwargs: keyword args for print
     """
@@ -25,7 +30,8 @@ def debug_log(*args, **kwargs) -> None:
 
 def __escape_synchronization__(payload: bytearray) -> bytearray:
     """
-    Duplicates all occurrences of 0xAA
+    Duplicate all occurrences of 0xAA.
+
     :param payload: Input
     :return: a new bytearray
     """
@@ -40,7 +46,15 @@ def __escape_synchronization__(payload: bytearray) -> bytearray:
 
 def __unescape_synchronization__(payload: bytearray) -> bytearray:
     """
-    Undoes the escape function. Drops erroneous 0xAA.
+    Undo the escape function.
+
+    When the function encounters 0xAA that are in payload, but unescaped, they get dropped. 0xAA
+    are used as something like synchronization symbols, which seems pretty redundant in USB.
+    They shouldn't exist, and if this was happening in a data transmission technology that
+    requires synchronization, it would render the entire packet useless. So we have three
+    choices: Throw an exception, drop the synchronization character, or keep it. I chose the
+    second option by fair dice roll.
+
     :param payload: To un-escape
     :return: a new bytearray
     """
@@ -64,8 +78,8 @@ def __unescape_synchronization__(payload: bytearray) -> bytearray:
 
 def __preprocess_payload__(data: bytearray) -> bytearray:
     """
-    Escapes the payload, adds the length, the direction, and then escapes all
-    synchronization symbols.
+    Escape the payload, add the length, the direction, and then escape all synchronization symbols.
+
     :param data: The payload to construct the packet from. Must be <= 255 in length.
     :return: The preprocessed payload.
     """
@@ -87,9 +101,8 @@ def __preprocess_payload__(data: bytearray) -> bytearray:
 
 def __generate_raw_frames__(payload: bytearray) -> List[bytearray]:
     """
-    Generates the frames with with the correct chunk size, which contain the payload.
-    Not really tested if it properly works with len(payload) > 60 which would end up in
-    multiple frames.
+    Generate the frames with with the correct chunk size, which contain the payload.
+
     :param payload: The packet data.
     :return: A list of the frames to send.
     """
@@ -111,21 +124,27 @@ def __generate_raw_frames__(payload: bytearray) -> List[bytearray]:
 
 
 class Charger:
-    """Represents a charger. Basically only wraps an hid device, and supplies read/write
-    functions. """
+    """Basically only wraps an hid device, and supplies read/write functions."""
 
     def __init__(self, device: Optional[hid.device]) -> None:
+        """
+        Trivial constructor.
+
+        :param device: The hid.device to wrap around, or None for testing.
+        """
         self.__device__ = device
 
     def read_packet(self, captured_frames: Optional[List[bytearray]] = None) -> bytearray:
         """
-        Tries to read a packet from the charger. Use it to get the results. If you call it,
-        and there is nothing to read it will throw an exception.
+        Try to read a packet from the charger.
+
+        Use it to get the results of a query. If you call it, and there is nothing to read it will
+        throw an exception.
+
         :param captured_frames: This here must contain captured frame. Only useful for testing.
         If omitted, the function reads from the charger.
         :return: The packet data. Reassembled, unescaped, and checked for errors.
         """
-
         expected_packet_length: Optional[int] = None
         packet_data: Optional[bytearray] = None
 
@@ -194,8 +213,10 @@ class Charger:
 
     def write_to_charger(self, payload: bytearray) -> None:
         """
-        This function is the user facing interface for packet writing. It takes care
-        about everything, including actually sending it.
+        Write a payload to the charger.
+
+        The function takes care about everything, including actually sending it.
+
         :param payload: The packet data to send to the device. Must be smaller than 255 bytes.
         """
         frames = __generate_raw_frames__(payload)
@@ -206,14 +227,15 @@ class Charger:
             self.__device__.write(f)
 
     def link_test(self) -> None:
-        """
-        Sends a well-supported nop command.
-        """
+        """Send a well-supported nop command."""
         self.write_to_charger(bytearray([0x00]))
 
     def rename_device(self, new_name: str):
         """
-        Renames the device. This causes an immediate reboot. It takes a maximum of 8 characters.
+        Rename the device.
+
+        This causes an immediate reboot. It takes a maximum of 8 characters.
+
         :param new_name: The new name, maximum 8 chars, might be UTF-8.
         """
         encoded_name: bytes = new_name.encode(encoding='utf8')
@@ -224,38 +246,40 @@ class Charger:
 
     def get_mcu_serial_number(self) -> None:
         """
-        Requests the value of the unique device ID register of the STM32-like MCU.
+        Request the value of the unique device ID register of the STM32-like MCU.
+
         See ST's RM0008, sec. 30.2
         """
         self.write_to_charger(bytearray([0xc8]))
 
     def metrics(self, channel: int) -> None:
         """
-        Requests metrics for a charging channel.
+        Request metrics for a charging channel.
+
         :param channel: 0-indexed channel number
         """
         self.write_to_charger(bytearray([0xde, channel]))
 
     def version(self) -> None:
-        """
-        Requests version information from the charger.
-        """
+        """Request version information from the charger."""
         self.write_to_charger(bytearray([0xe0]))
 
     def boot_to_loader(self) -> None:
-        """
-        Immediately reboots the charger to boot loader mode.
-        """
+        """Immediately reboot the charger to boot loader mode."""
         self.write_to_charger(bytearray([0xf0, 0xac]))
+
+    def boot_to_app(self) -> None:
+        """Immediately reboot the charger to app mode."""
+        self.write_to_charger(bytearray([0xfc, 0xca]))
 
     def verify_firmware(self, app_storage_offset: int, app_size: int, calculated_checksum: int) \
             -> None:
         """
-        Requests a verification of the firmware.
+        Request a verification of the firmware.
+
         :param app_storage_offset: The in-memory address to start the verification.
         :param app_size: The length of the data to verify, really should be a multiple of 4.
-        :param calculated_checksum: uint32 sum of the firmware treated as an array of uint32
-        :return:
+        :param calculated_checksum: uint32 sum of the firmware treated as an array of uint32.
         """
         cmd = bytearray(b'\xf6\x35\x00')
         cmd.extend(int.to_bytes(app_storage_offset, signed=False, length=4, byteorder='little'))
@@ -264,23 +288,18 @@ class Charger:
         self.write_to_charger(cmd)
 
     def read_some_sensors(self) -> None:
-        """
-        Reads some sensor value whose meaning remains partially unknown.
-        """
+        """Read some sensor value whose meaning remains partially unknown."""
         self.write_to_charger(bytearray([0xf8]))
-
-    def boot_to_app(self) -> None:
-        """
-        Immediately reboots the charger to app mode.
-        """
-        self.write_to_charger(bytearray([0xfc, 0xca]))
 
     def model_and_mode(self) -> Tuple[str, str]:
         """
-        Returns the model, and mode. You are responsible to ensure that the charger supports
-        the command you send it. This might help you.
-        :return: A 2-tuple consisting of the model name,
-        and either 'boot loader', or 'app'. None, if something broke.
+        Return the model, and mode.
+
+        As you are responsible to ensure that the charger supports the command you send it,
+        this might help you.
+
+        :return: A 2-tuple consisting of the model name, and either 'boot loader', or 'app'.
+        None, if something broke.
         """
         self.link_test()
         link_test_result = parse_packet(self.read_packet())
@@ -293,9 +312,11 @@ class Charger:
 def get_device(product_id: Optional[int] = None, vendor_id: Optional[int] = None,
                path: Optional[str] = None) -> Charger:
     """
-    Looks for a charger, and returns the first one found. This deserves a little more
-    sophistication. Both C4, and A4 share the same IDs. Additionally, the A4 identifies itself
-    as C4 in the USB descriptor. To distinguish both, you have to ask it.
+    Look for a charger, and return the first one found.
+
+    This deserves a little more sophistication. Both C4, and A4 share the same IDs. Additionally,
+    the A4 identifies itself as C4 in the USB descriptor. To distinguish both, you have to ask it.
+
     :param product_id: USB product id of the device to open. Mutually exclusive with path.
     :param vendor_id: USB vendor_id id of the device to open. Mutually exclusive with path.
     :param path: hid path. Platform specific format. Refer to `hidtest`, or the hidapi
