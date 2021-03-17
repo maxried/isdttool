@@ -77,7 +77,7 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
             if event['dimensions id'] == 4:
                 readable = 'Channel {channel}: Periodic update: empty'.format(**event)
             else:
-                # charged, discharged, storaged, cycled, analyzed
+                # charged, discharged, storaged [sic!], cycled, analyzed
                 if event['mode id'] in [4, 6, 8, 10, 12]:
                     readable = ('Channel {channel}: Periodic update:\n'
                                 '{dimensions string} {chemistry string}: {mode string}\n'

@@ -254,7 +254,7 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
 def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]]) -> str:
     """
     Convert a packet to a human readable string.
-    
+
     :param response: The packet data as received by read_packet, or preparsed as Dict.
     :return: A human readable string.
     """

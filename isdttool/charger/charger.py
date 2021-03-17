@@ -319,7 +319,7 @@ def get_device(product_id: Optional[int] = None, vendor_id: Optional[int] = None
 
     :param product_id: USB product id of the device to open. Mutually exclusive with path.
     :param vendor_id: USB vendor_id id of the device to open. Mutually exclusive with path.
-    :param path: hid path. Platform specific format. Refer to `hidtest`, or the hidapi
+    :param path: hid path. Platform specific format. Refer to the `hidtest` command, or the hidapi
     documentation. Mutually exclusive with product_id, and vendor_id.
     """
     hid_device = hid.device()
