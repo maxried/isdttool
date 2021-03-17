@@ -24,11 +24,11 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             # C4 has only a 4 byte response while in app, it misses the device model
             result['_malformed'] = False
             result['result'] = True
-            result['inside boot loader'] = False
+            result['inside bootloader'] = False
         elif len(packet) == 10:  # C4 in BL mode as well as A4 in any mode has a 10 byte response
             result['_malformed'] = False
             result['result'] = True
-            result['inside boot loader'] = packet[1] == 0
+            result['inside bootloader'] = packet[1] == 0
             result['model'] = packet[2:].decode('ascii').rstrip('\x00')
         else:
             result['_malformed'] = True
@@ -53,13 +53,13 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
 
             result['_malformed'] = False
     elif packet[0] == 0xf1:
-        result['_type'] = 'reboot to boot loader'
+        result['_type'] = 'reboot to bootloader'
         if len(packet) != 2:
             result['_malformed'] = True
         else:
             if packet[1] == 0x00:
                 result['rebooting'] = True
-                result['next stop'] = 'boot loader'
+                result['next stop'] = 'bootloader'
                 result['_malformed'] = False
             elif packet[1] == 0x02:
                 result['rebooting'] = False
@@ -90,7 +90,7 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             result['rebooting'] = True
             result['next stop'] = 'app'
             result['_malformed'] = False
-            result['coming from'] = ('boot loader' if len(packet) == 1 else 'app')
+            result['coming from'] = ('bootloader' if len(packet) == 1 else 'app')
     elif packet[0] == 0xdf:
         result['_type'] = 'metrics'
         if len(packet) == 1:
@@ -270,16 +270,16 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]]) 
 
     if packet['_type'] == 'link test':
         result = 'Link test ' + 'succeeded' if packet['result'] else 'failed'
-        result += '\nCurrently running the ' + ('boot loader' if packet['inside boot loader'] else
+        result += '\nCurrently running the ' + ('bootloader' if packet['inside bootloader'] else
                                                 'app')
     elif packet['_type'] == 'device information':
         result = ('Model name: {}\n'
                   'Hardware version {}\n'
-                  'Boot loader version {}\n'
+                  'Bootloader version {}\n'
                   'OS/App version {}').format(packet['model name'], packet['hw version'],
                                               packet['bl version'], packet['app version'])
-    elif packet['_type'] == 'reboot to boot loader':
-        result = 'Rebooting to boot loader.'
+    elif packet['_type'] == 'reboot to bootloader':
+        result = 'Rebooting to bootloader.'
     elif packet['_type'] == 'rename device':
         result = 'Device renamed, rebooting.'
     elif packet['_type'] == 'reboot to app':

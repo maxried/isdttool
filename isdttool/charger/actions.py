@@ -207,13 +207,13 @@ def display_version(charger: Charger, output_mode='text') -> None:
 
 def reboot_to_boot_loader(charger: Charger, output_mode='text') -> None:
     """
-    Reboot the charger to boot loader mode.
+    Reboot the charger to bootloader mode.
 
     :param charger: A usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'boot loader'),
-                                          ('A4', 'boot loader')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'bootloader'),
+                                          ('A4', 'bootloader')]):
         return
 
     charger.boot_to_loader()
@@ -228,7 +228,7 @@ def verify_firmware(charger: Charger, file: BinaryIO, output_mode: str = 'text')
     :param file: The encrypted file as downloaded from ISDT
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'boot loader'), ('A4', 'boot loader')]):
+    if not assure_compatibility(charger, [('C4', 'bootloader'), ('A4', 'bootloader')]):
         return
 
     decrypted_firmware = BytesIO()
@@ -267,8 +267,8 @@ def reboot_to_app(charger: Charger, output_mode='text') -> None:
     :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'boot loader'),
-                                          ('A4', 'boot loader')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'bootloader'),
+                                          ('A4', 'bootloader')]):
         return
 
     charger.boot_to_app()

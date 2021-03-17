@@ -265,7 +265,7 @@ class Charger:
         self.write_to_charger(bytearray([0xe0]))
 
     def boot_to_loader(self) -> None:
-        """Immediately reboot the charger to boot loader mode."""
+        """Immediately reboot the charger to bootloader mode."""
         self.write_to_charger(bytearray([0xf0, 0xac]))
 
     def boot_to_app(self) -> None:
@@ -298,15 +298,15 @@ class Charger:
         As you are responsible to ensure that the charger supports the command you send it,
         this might help you.
 
-        :return: A 2-tuple consisting of the model name, and either 'boot loader', or 'app'.
+        :return: A 2-tuple consisting of the model name, and either 'bootloader', or 'app'.
         None, if something broke.
         """
         self.link_test()
         link_test_result = parse_packet(self.read_packet())
         self.version()
         version_result = parse_packet(self.read_packet())
-        return version_result['model name'], ('boot loader'
-                                              if link_test_result['inside boot loader'] else 'app')
+        return version_result['model name'], ('bootloader'
+                                              if link_test_result['inside bootloader'] else 'app')
 
 
 def get_device(product_id: Optional[int] = None, vendor_id: Optional[int] = None,

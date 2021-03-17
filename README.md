@@ -47,7 +47,7 @@ Usage examples:
     $ isdttool version
     Model name: C4
     Hardware version 1.0.0.4
-    Boot loader version 1.0.0.3
+    Bootloader version 1.0.0.3
     OS/App version 1.1.0.16
     
     $ isdttool rename --name Test
@@ -61,7 +61,7 @@ Usage examples:
     Checksum OK
     
     $ isdttool boot-loader
-    Rebooting to boot loader.
+    Rebooting to bootloader.
     $ isdttool verify-fw --file A4.bin
     The checksum matches the checksum of the image in flash.
     
@@ -85,5 +85,5 @@ Usage examples:
     $ isdttool --path "IOService:/AppleACPIPlatformExpert/PCI0@0/[...]" version
     Model name: A4
     Hardware version 1.2.0.0
-    Boot loader version 1.0.0.1
+    Bootloader version 1.0.0.1
     OS/App version 1.0.0.20

@@ -164,8 +164,8 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     F_ |  A | B  | B  | B  |  A |  A | BA |  A |
     
     A: Supported in app mode
-    B: Supported in boot loader mode
-    ?: Unclear, might be supported in boot loader mode
+    B: Supported in bootloader mode
+    ?: Unclear, might be supported in bootloader mode
 
 ### A4
 
@@ -189,7 +189,7 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     F_ | BA | B  | B  | B  |    |    | B  |  A |
     
     A: Supported in app mode
-    B: Supported in boot loader mode
+    B: Supported in bootloader mode
 
 ## Remarks
 

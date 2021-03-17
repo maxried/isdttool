@@ -171,7 +171,7 @@ def get_argument_parser() -> ArgumentParser:
     link_test_parser.set_defaults(mode='link-test')
 
     reboot_bl_parser = subparsers.add_parser('boot-loader',
-                                             help='Reboots the charger from app into boot loader.')
+                                             help='Reboots the charger from app into bootloader.')
     reboot_bl_parser.set_defaults(mode='boot-loader')
 
     reboot_app_parser = subparsers.add_parser('boot-app',
