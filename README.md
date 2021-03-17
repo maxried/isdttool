@@ -1,5 +1,7 @@
 # isdttool
 
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/4fe6e14e24c84419889c7f7da9e683d9)](https://www.codacy.com/gh/maxried/isdttool/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=maxried/isdttool&amp;utm_campaign=Badge_Grade)
+
 ## Important Notes
 This software is not sponsored by ISDT, or anyone else. It was created by observing the protocol between the updater, then the charger, and fuzzing the charger, and observing its behavior. Chargers are dangerous tools. You should never use them unattended. Batteries can leak, catch fire, etc. This tool comes with no warranties whatsoever. If bad things happen, I'm not responsible.
 
