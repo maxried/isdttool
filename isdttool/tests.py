@@ -18,17 +18,17 @@ class MyTestCase(unittest.TestCase):
         set_debug(True)
 
     def test_a4_version(self) -> None:
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='A4', mode='ignore')
         payload: List[bytearray] = [bytearray(b'\x02\x2d\xaa\x21\x27\xe1\x41\x34\x00\x00\x00\x00'
                                               b'\x00\x00\x01\x02\x00\x00\x01\x00\x00\x01\x01\x00'
                                               b'\x00\x11\x41\x34\x00\x00\x00\x00\x00\x00\x00\x00'
                                               b'\x00\x00\x12\x08\x1d\x11\x15\x3b\xc2\x00\x00\x00'
                                               b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
                                               b'\x00\x00\x00\x00')]
-        self.assertIsNotNone(parse_packet(charger.read_packet(payload)))
+        self.assertIsNotNone(parse_packet(charger.read_packet(payload), model='ignore'))
 
     def test_real_world_packet(self) -> None:
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
 
         print('Testing captured frame')
         payload: List[bytearray] = [
@@ -39,7 +39,7 @@ class MyTestCase(unittest.TestCase):
         self.assertIsNotNone(charger.read_packet(payload))
 
     def test_protocol_decode_long(self) -> None:
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
 
         print('Testing long frame')
         payload = bytearray(b'0123456789' * 7)
@@ -48,7 +48,7 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(payload, decoded_payload)
 
     def test_protocol_decode_small(self) -> None:
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
 
         print('Testing small frame')
         payload = bytearray(b'0123456789')
@@ -89,7 +89,7 @@ class MyTestCase(unittest.TestCase):
                       b'\x75\x03\x08\x97\x78\x01\x08\x09\x75\x03'),
             bytearray(b'\x01\x0E\x08\x0D\x75\x03\x08\x11\x75\x03\x08\x15\x75\x03\x08\xBA')]
 
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
         read_payload = charger.read_packet(capture)
         self.assertEqual(len(read_payload), 0x86)
         self.assertEqual(read_payload,
@@ -106,7 +106,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_write_block2(self) -> None:
         print('Testing larger packet captured from the official firmware updater 2')
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
         capture: List[bytearray] = [
             bytearray(b'\x01\x3e\xaa\x12\x86\xf4\x00\x80\x42\x00\x08\x00\x7d\xfa\x10\x00\x00\x07'
                       b'\xf7\x5d\xb0\x00\x00\x0d\x90\x07\xf0\x00\x00\x0f\x70\x08\xd0\x00\x00\x0c'
@@ -133,7 +133,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_write_block_aa(self) -> None:
         print('Testing large packet captured with 0xAA in payload.')
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
         capture: List[bytearray] = [
             bytearray(b'\x01\x3e\xaa\x12\x86\xf4\x00\x00\x43\x00\x08\x01\xe5\x00\x77\x01\x00\x00'
                       b'\x3e\x10\x00\x0b\x80\x00\x05\xf1\x00\x00\xe7\x00\x00\x9b\x00\x00\x7f\x00'
@@ -173,7 +173,7 @@ class MyTestCase(unittest.TestCase):
                                           b'\x7f\x00\x00\x00')
 
         generated_frames = __generate_raw_frames__(payload_in)
-        charger: Charger = Charger(None)
+        charger: Charger = Charger(None, model='ignore', mode='ignore')
         payload_out = charger.read_packet(generated_frames.copy())
 
         self.assertEqual(payload_in, payload_out)

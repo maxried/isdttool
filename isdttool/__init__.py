@@ -15,6 +15,7 @@ __all__ = ['get_device', 'Charger']
 
 def set_debug(enabled: bool) -> None:
     """Enables or disables the protocol debug mode
+
     :param enabled: Knob direction"""
     global DEBUG_MODE
     DEBUG_MODE = enabled

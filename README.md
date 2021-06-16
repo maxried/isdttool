@@ -11,6 +11,8 @@ This software is not sponsored by ISDT, or anyone else. It was created by observ
 - ISDT C4
 - ISDT A4
 - DNT Smart PRO (which just is a rebranded ISDT C4 with old firmware)
+- ISDT C4EVO
+- ISDT Q8 (minimal support)
 
 It should be compatible with other chargers by ISDT, at least the ones that are not primarily for charging LiPo. E.g. N8, or N24 should be compatible, but it's unknown if models like P20, or D1 work. It requires a USB connection. ISDT chargers with firmware upgrade capability should at least be detectable by this tool.
 
@@ -50,7 +52,7 @@ Usage examples:
     Boot loader version 1.0.0.3
     OS/App version 1.1.0.16
     
-    $ isdttool rename --name Test
+    $ isdttool rename Test
     Device renamed, rebooting.
     
     $ isdttool fw-info -f Firmware.fwd
