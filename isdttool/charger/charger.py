@@ -323,3 +323,11 @@ def get_device(model_name: str = 'auto', mode: str = 'auto',
         hid_device.open(vendor_id=vendor_id, product_id=product_id)
 
     return Charger(model=model_name, mode=mode, device=hid_device)
+
+
+def enumerate_devices(vendor_id: int = 0x28e9, product_id: int = 0x028a):
+    """Just wraps the hid.enumerate function
+    :param product_id: Fill in the product id. Hint: It's always 0x028a.
+    :param vendor_id: Fill in the vendor id. Hint: It's always 0x28e9
+    """
+    return hid.enumerate(vendor_id, product_id)

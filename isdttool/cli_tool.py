@@ -15,9 +15,9 @@ from isdttool.charger import display_metrics, display_version, display_link_test
     reboot_to_app, rename_device, display_sensors, write_raw_command, verify_firmware, \
     read_serial_number, \
     monitor_state
+from isdttool.charger.charger import enumerate_devices
 from isdttool.firmware import decrypt_firmware_image, print_firmware_info
 from isdttool.charger.representation import parse_packet
-from isdttool.charger.actions import print_simple_result
 
 
 def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
@@ -170,6 +170,13 @@ def get_argument_parser() -> ArgumentParser:
     version_parser = subparsers.add_parser('version', help='Identify the charger.')
     version_parser.set_defaults(mode='version')
 
+    list_parser = subparsers.add_parser('list', help='Enumerate connected chargers identified by '
+                                                     'the --pid, and --vid. ISDT tends to reuse '
+                                                     'USB product strings so expect the models '
+                                                     'to be wrong here. Use `--path ... version` '
+                                                     'to get the correct model information.')
+    list_parser.set_defaults(mode='list')
+
     link_test_parser = subparsers.add_parser('link-test', help='Test the connection.')
     link_test_parser.set_defaults(mode='link-test')
 
@@ -295,6 +302,15 @@ def main() -> None:
     if a.mode == '':
         parser.print_usage()
         exit(1)
+    elif a.mode == 'list':
+        devices = enumerate_devices(a.vid, a.pid)
+        if len(devices) == 0:
+            print('No devices found.')
+        else:
+            for d in devices:
+                print(f'Model "{d["product_string"]}" at "{d["path"].decode("utf8")}"')
+            print(f'Found {len(devices)} candidate devices. Note that the model identifier does '
+                  f'NOT have to be correct here.')
     elif a.mode == 'decrypt-fw':
         firmware_decrypt(a.file, a.outfile)
     elif a.mode == 'fw-info':
