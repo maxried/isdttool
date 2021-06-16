@@ -310,6 +310,7 @@ def get_device(model_name: str = 'auto', mode: str = 'auto',
     sophistication. Both C4, and A4 share the same IDs. Additionally, the A4 identifies itself
     as C4 in the USB descriptor. To distinguish both, you have to ask it.
     :param model_name: The model name will be passed to the charger class.
+    :param mode: The mode that will be passed to the charger class.
     :param product_id: USB product id of the device to open. Mutually exclusive with path.
     :param vendor_id: USB vendor_id id of the device to open. Mutually exclusive with path.
     :param path: hid path. Platform specific format. Refer to `hidtest`, or the hidapi

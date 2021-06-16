@@ -232,7 +232,7 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     B: Supported in boot loader mode
 
 
-### C4EVO (incomplete)
+### C4EVO (incomplete?)
 
        | _0 | _2 | _4 | _6 | _8 | _A | _C | _E |  
     ---|----|----|----|----|----|----|----|----|
@@ -246,15 +246,17 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     7_ |    |    |    |    |    |    |    |    |
     8_ |    |    |    |    |    |    |    |    |
     9_ |    |    |    |    |    |    |    |    |
-    A_ |    |    |    |    |    |    |    |    |
+    A_ |  A |    |    |  A |  A |    |  A |    |
     B_ |    |    |    |    |    |    |    |    |
-    C_ |    |    |    |    |    |    |    |    |
+    C_ |    |    |  A |    |    |    |    |  A |
     D_ |    |    |    |    |    |    |    |    |
-    E_ |    |    |    |    |    |    |    |    |
+    E_ |  A |    |  A |    |  A |    |    |    |
     F_ | BA |    |    |    |    |    |    |    |
     
     A: Supported in app mode
     B: Supported in boot loader mode
+
+The C4EVO has a command, you can only find by fuzzing, and not by looking at the disassembly. I'm unsure why
 
 
 ## Remarks
