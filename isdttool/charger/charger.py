@@ -281,6 +281,12 @@ class Charger:
         """
         self.write_to_charger(bytearray([0xf8]))
 
+    def channel_sensors(self, channel: int) -> None:
+        """
+        Reads some channel measurements.
+        """
+        self.write_to_charger(bytearray([0xe4, channel]))
+
     def boot_to_app(self) -> None:
         """
         Immediately reboots the charger to app mode.

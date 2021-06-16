@@ -238,6 +238,20 @@ def display_sensors(charger: Charger, output_mode='text') -> None:
     print_simple_result(charger, output_mode)
 
 
+def display_channel_sensors(charger: Charger, channel: int, output_mode='text') -> None:
+    """
+       Queries the state of some channel sensors.
+       :param charger: what charger to ask
+       :param channel: channel ID, 0 indexed
+       :param output_mode: Either csv, test, json, or dict.
+    """
+    if not assure_compatibility(charger, [('C4EVO', 'app')]):
+        return
+
+    charger.channel_sensors(channel)
+    print_simple_result(charger, output_mode)
+
+
 def reboot_to_app(charger: Charger, output_mode='text') -> None:
     """
     Reboots the charger to app mode.

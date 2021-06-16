@@ -245,6 +245,7 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
             result['unknown voltage 9'] = voltages[8]
     elif packet[0] == 0xe5:
         result['_type'] = 'channel-metrics'
+        result['_malformed'] = False
         result['channel'], result['psu voltage'], result['charging voltage'], \
             result['current'], result['temperature'] = unpack_from('<BHHHxxB', packet, 1)
     else:
@@ -329,6 +330,12 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]], 
                   'Unknown Voltage 6: {unknown voltage 6} mV\n'
                   'Unknown Voltage 7: {unknown voltage 7} mV\n'
                   'Unknown Voltage 8: {unknown voltage 8} mV\n').format(**packet)
+    elif packet['_type'] == 'channel-metrics':
+        result = f'Channel: {packet["channel"]}\n' \
+                 f'PSU Voltage: {packet["psu voltage"]} mV\n' \
+                 f'Charging voltage: {packet["charging voltage"]} mV\n' \
+                 f'Current: {packet["current"]} mA\n' \
+                 f'Temperature: {packet["temperature"]} °C'
     else:
         result = None
 

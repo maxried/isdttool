@@ -15,6 +15,7 @@ from isdttool.charger import display_metrics, display_version, display_link_test
     reboot_to_app, rename_device, display_sensors, write_raw_command, verify_firmware, \
     read_serial_number, \
     monitor_state
+from isdttool.charger.actions import display_channel_sensors
 from isdttool.charger.charger import enumerate_devices
 from isdttool.firmware import decrypt_firmware_image, print_firmware_info
 from isdttool.charger.representation import parse_packet
@@ -198,6 +199,12 @@ def get_argument_parser() -> ArgumentParser:
                                     'cleared.')
     rename_parser.set_defaults(mode='rename')
 
+    channel_sensors = subparsers.add_parser('channel-sensors',
+                                            help='Shows some channel information.')
+    channel_sensors.add_argument('channel', type=int,
+                                 help='0 based channel ID.')
+    channel_sensors.set_defaults(mode='channel-sensors')
+
     sensors_parser = subparsers.add_parser('sensors',
                                            help='Displays a bank of sensors for most of which I '
                                                 'have no idea what they mean.')
@@ -348,6 +355,8 @@ def main() -> None:
             rename_device(charger, a.name, a.output)
         elif a.mode == 'sensors':
             display_sensors(charger, a.output)
+        elif a.mode == 'channel-sensors':
+            display_channel_sensors(charger, a.channel, a.output)
         elif a.mode == 'raw-command':
             write_raw_command(charger, a.command, a.output)
         elif a.mode == 'verify-fw':
