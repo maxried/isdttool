@@ -29,7 +29,19 @@ The chargers don't have responses longer than 64 bytes as far as I know, so impl
 
 ### 0x00
 
-Link test. Works in bootloader mode, and in app mode. If running in bootloader mode, the packet will be longer, and it will contain the charger model name. Available in C4 and A4.
+Link test. Works in bootloader mode, and in app mode. If running in non-C4EVO bootloader mode, the packet will be longer, and it will contain the charger model name. Available in C4, C4EVO, and A4.
+
+### 0x02
+
+Channel voltage and current monitoring on the C4EVO in app mode.
+
+### 0x04
+
+C4EVO only, returns information about two memory locations.
+
+### 0x08
+
+C4EVO only, returns 6, if some memory address is set to 0x01, a 1, and the hardware version.
 
 ### 0x20
 
@@ -38,9 +50,21 @@ Link test. Works in bootloader mode, and in app mode. If running in bootloader m
     0x05: Write App Data
     0x06: Checksum App Data
 
-### 0xA0, 0xA2, 0xA4, 0xA6, 0xA8
+### 0xA0
+
+Does something on C4EVO in App mode. Expects A5 C3 as parameters to unlock, followed by a parameter that has to be FF to do _something_. Nulls out PN until reboot. No operation on A4, C4.
+
+### 0xA2, 0xA4
 
 No operation. It doesn't even send a response. There is a code path for this opcode, but it does nothing, might be used in other firmware versions. Only _implemented_ in C4 app.
+
+# 0xA6
+
+Does something on C4EVO in App mode, no op on A4, C4.
+
+# 0xA8
+
+Does something on C4EVO in App mode, no op on A4, C4.
 
 ### 0xAA
 
@@ -49,7 +73,7 @@ Just echoes, maybe it does something more interesting on other chargers. Seems t
 ### 0xAC
 
 This one sets the serial number. It takes 6 bytes as parameter, and then sets the serial number to: `{0:02d}{1:02d}{2:02d}{3:02d}{4:02d}{5:02d}-{:d}` where the last one is set using the 0xEE command, and is called 'UserId'. It does not use the standard packet format, and it returns a lot more information with unknown meaning. Seems to be a timestamp of the manufacturing date in the format YYMMDDhhmmss. This is only available on C4 in app mode.
-
+e.g. 210311100000-00000
 ### 0xC0
 
 Device rename, maximum 8 bytes. The encoding of the string is unknown, but it feels as if it's a UTF-8 subset. Sending `b'\xc0YourName'` sets the name, and reboots the charger immediately.
@@ -72,9 +96,17 @@ nothing. If the chosen language set is only bit 7, English will always be availa
 
 If you send 5 bytes total like `C2 5A A5 XX YY`, it does _something_ and returns a non-standard in addition to a well-formed packet.
 
+### 0xC4
+
+Only on C4EVO.
+
 ### 0xC8
 
 Returns the unique device ID register burnt into the microcontroller. It has no semantic.
+
+### 0xCE
+
+Only on C4EVO. 
 
 ### 0xDE
 
@@ -84,7 +116,15 @@ This one is very interesting. It returns the measurements of the charging channe
 
 Device model and firmware version. Parameters don't change the packet. Refer to the implementation for details.
 
-### 0xE2, 0xE4, 0xE6
+### 0xE2
+
+No operation. It doesn't even send a response. There is code path for this opcode, but it does nothing, might be used in other firmware versions.
+
+### 0xE4
+
+Only on C4EVO. Takes a channel number as its argument. If it's larger than 5, it will be set to 0. It then returns information about the psu, and the channel.
+
+### 0xE6
 
 No operation. It doesn't even send a response. There is code path for this opcode, but it does nothing, might be used in other firmware versions.
 
@@ -130,7 +170,7 @@ Voltage information for each channel. They come in pairs of two. One of them is 
 
 ### 0xFC
 
-Reboots to App, needs 0xCA as parameter.
+Reboots to App, needs 0xCA as parameter. When in app mode C4EVO also reboots when you just send FC, but it feels more like crashing as it doesn't confirm the reboot request. 
 
 ### 0xFE
 
@@ -164,8 +204,8 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     F_ |  A | B  | B  | B  |  A |  A | BA |  A |
     
     A: Supported in app mode
-    B: Supported in bootloader mode
-    ?: Unclear, might be supported in bootloader mode
+    B: Supported in boot loader mode
+    ?: Unclear, might be supported in boot loader mode
 
 ### A4
 
@@ -189,7 +229,33 @@ There are two boot modes, maybe three if you can reach the DFU mode of the micro
     F_ | BA | B  | B  | B  |    |    | B  |  A |
     
     A: Supported in app mode
-    B: Supported in bootloader mode
+    B: Supported in boot loader mode
+
+
+### C4EVO (incomplete)
+
+       | _0 | _2 | _4 | _6 | _8 | _A | _C | _E |  
+    ---|----|----|----|----|----|----|----|----|
+    0_ | BA |  A |  A |    |  A |  A |    |    |
+    1_ |    |    |    |    |    |    |    |    |
+    2_ |    |    |    |    |    |    |    |    |
+    3_ |    |    |    |    |    |    |    |    |
+    4_ |    |    |    |    |    |    |    |    |
+    5_ |    |    |    |    |    |    |    |    |
+    6_ |    |    |    |    |    |    |    |    |
+    7_ |    |    |    |    |    |    |    |    |
+    8_ |    |    |    |    |    |    |    |    |
+    9_ |    |    |    |    |    |    |    |    |
+    A_ |    |    |    |    |    |    |    |    |
+    B_ |    |    |    |    |    |    |    |    |
+    C_ |    |    |    |    |    |    |    |    |
+    D_ |    |    |    |    |    |    |    |    |
+    E_ |    |    |    |    |    |    |    |    |
+    F_ | BA |    |    |    |    |    |    |    |
+    
+    A: Supported in app mode
+    B: Supported in boot loader mode
+
 
 ## Remarks
 

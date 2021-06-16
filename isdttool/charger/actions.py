@@ -1,5 +1,4 @@
 # coding=utf-8
-
 """Command wrapper functions to easily interface with the charger."""
 
 import csv
@@ -16,54 +15,43 @@ from ..firmware import decrypt_firmware_image
 
 
 class RedirectWriteToPrint:
-    """
-    The csv.DictWriter seems to have some serious quirks when using it to write to stdout.
-
+    """The csv.DictWriter seems to have some serious quirks when using it to write to stdout.
     E.g. redirection works, piping does not. So here you go. It's just a wrapper around print
-    with some minor adjustments to the parameters.
-    """
-
+    with some minor adjustments to the parameters. """
     @staticmethod
     def write(*args, **kwargs) -> None:
-        """Implementation of the file protocol just enough to use it with csv.DictWriter."""
+        """This is an implementation of the Python file protocol just enough to use it with
+        csv.DictWriter. """
         kwargs['flush'] = True
         kwargs['end'] = ''
         print(*args, **kwargs)
 
 
-def assure_compatibility(charger: Charger, configurations: List[Tuple[str, str]],
-                         silent: bool = False) -> bool:
+def assure_compatibility(charger: Charger, configurations: List[Tuple[str, str]]) -> bool:
     """
-    Verify compatibility, and provide a proper error message if a command is not supported.
-
-    If debug_mode is True, the check is skipped, and True is returned.
-
+    This ensures compatibility, and provides a proper error message if a command is not supported.
+    If debug_mode is True, this skips the check, and always returns True.
     :param charger: The charger to test.
     :param configurations: A list of tuples like [('A4', 'boot'), ('C4', 'app')]
     :param silent: If True, don't print out error messages.
-    :return: True, if charger matches, or debug mode is activated.
+    :return: True, if charger matches.
     """
-    if isdttool.DEBUG_MODE:
-        return True
+    for c in configurations:
+        if charger.model in (c[0], 'ignore') and charger.mode in (c[1], 'ignore'):
+            return True
 
-    my_model = charger.model_and_mode()
-    if my_model not in configurations:
-        if not silent:
-            print('This command is currently not supported by the model "{}" in {} mode.\n'
-                  'The command is supported in the following modes:'
-                  .format(my_model[0], my_model[1]), file=sys.stderr)
-            for i in configurations:
-                print('Model "{}" in {} mode'.format(i[0], i[1]), file=sys.stderr)
+    print('This command is currently not supported by the model "{}" in {} mode.\n'
+          'The command is supported in the following modes:'.format(charger.model, charger.mode),
+          file=sys.stderr)
+    for i in configurations:
+        print('Model "{}" in {} mode'.format(i[0], i[1]), file=sys.stderr)
 
-        return False
-
-    return True
+    return False
 
 
 def print_simple_result(charger: Charger, output_mode: str = 'text') -> None:
     """
-    Print the result of the simpler commands, e.g. version, or link-test.
-
+    Print the result of the simpler commands, e.g. version, or link-test
     :param charger: The charger to read from.
     :param output_mode: The presentation format.
     """
@@ -73,27 +61,26 @@ def print_simple_result(charger: Charger, output_mode: str = 'text') -> None:
         return
     else:
         if output_mode == 'text':
-            print(packet_to_str(result))
+            print(packet_to_str(result, charger.model))
         elif output_mode == 'dict':
-            print(parse_packet(result))
+            print(parse_packet(result, charger.model))
         elif output_mode == 'json':
-            print(json.dumps(parse_packet(result)))
+            print(json.dumps(parse_packet(result, charger.model)))
         elif output_mode == 'csv':
-            result = parse_packet(result)
+            result = parse_packet(result, charger.model)
             writer = csv.DictWriter(RedirectWriteToPrint(), result.keys())
             writer.writeheader()
             writer.writerow(result)
         elif output_mode == 'raw':
-            print(result.hex())
+            print(' '.join(f'{x:02x}' for x in result))
         else:
             raise ValueError('Output mode "{}" is not implemented.'.format(output_mode))
 
 
 def display_link_test(charger: Charger, output_mode='text') -> None:
     """
-    Send a nop command, and display a message stating if it was transmitted, and acknowledged.
-
-    :param charger: A usb.Device object for the charger as retrieved by isdttool.get_device.
+    Sends a nop command, and displays a message stating if it was transmitted, and acknowledged.
+    :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
     # This one is assumed to be always supported.
@@ -104,16 +91,13 @@ def display_link_test(charger: Charger, output_mode='text') -> None:
 
 def rename_device(charger: Charger, name: str = '', output_mode: str = 'text') -> None:
     """
-    Rename the device.
-
-    This causes an immediate reboot, no exceptions. It takes a maximum of eight characters.
-
-    :param charger: A usb.Device object for the charger as retrieved by isdttool.get_device.
+    Renames the device. This causes an immediate reboot. It takes a maximum of eight characters.
+    :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param name: The new name of the device. Will be truncated to 8 bytes. No sanity check. Use
     with care.
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('Q8', 'app')]):
         return
 
     charger.rename_device(name)
@@ -122,10 +106,8 @@ def rename_device(charger: Charger, name: str = '', output_mode: str = 'text') -
 
 def read_serial_number(charger: Charger, output_mode='text') -> None:
     """
-    Retrieve the permanent serial number of the device.
-
-    This is the unique device ID register of the builtin MCU.
-
+    Retrieves the permanent serial number of the device, e.g. the unique device ID register of
+    the builtin MCU.
     :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
@@ -139,15 +121,14 @@ def read_serial_number(charger: Charger, output_mode='text') -> None:
 def display_metrics(charger: Charger, interval: float, count: int, channels: List[int],
                     output_mode='text') -> None:
     """
-    Query the state of the charging channel.
-
-    :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
-    :param interval: How many seconds to wait between queries.
-    :param count: Stop after that many queries.
-    :param channels: List of the zero-indexed channel numbers to query.
-    :param output_mode: Either csv, test, json, or dict.
+       Queries the state of the charging channel.
+       :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
+       :param interval: How many seconds to wait between queries.
+       :param count: Stop after that many queries.
+       :param channels: List of the zero-indexed channel numbers to query.
+       :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4EVO', 'app')]):
         return
 
     step: int = 0
@@ -165,22 +146,22 @@ def display_metrics(charger: Charger, interval: float, count: int, channels: Lis
                 result = charger.read_packet()
 
                 if output_mode == 'text':
-                    print(packet_to_str(result))
+                    print(packet_to_str(result, charger.model))
                 elif output_mode == 'dict':
-                    print(parse_packet(result))
+                    print(parse_packet(result, charger.model))
                 elif output_mode == 'json':
-                    result_dict = parse_packet(result)
+                    result_dict = parse_packet(result, charger.model)
                     result_dict['_measurement'] = step
                     all_channels.append(result_dict)
                 elif output_mode == 'csv':
-                    result_dict = parse_packet(result)
+                    result_dict = parse_packet(result, charger.model)
                     if first:
                         writer = csv.DictWriter(RedirectWriteToPrint(), result_dict.keys())
                         writer.writeheader()
                         first = False
                     writer.writerow(result_dict)
                 elif output_mode == 'raw':
-                    print(result.hex())
+                    print(' '.join(f'{x:02x}' for x in result))
 
             if count == 0 or count - step != 0:
                 sleep(interval)
@@ -193,9 +174,8 @@ def display_metrics(charger: Charger, interval: float, count: int, channels: Lis
 
 def display_version(charger: Charger, output_mode='text') -> None:
     """
-    Query the software versions, and the model name of the charger.
-
-    :param charger: A usb.Device object for the charger as retrieved by isdttool.get_device
+    Queries the software versions, and model of the charger.
+    :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
     # This one is assumed to be always supported.
@@ -207,13 +187,13 @@ def display_version(charger: Charger, output_mode='text') -> None:
 
 def reboot_to_boot_loader(charger: Charger, output_mode='text') -> None:
     """
-    Reboot the charger to bootloader mode.
-
-    :param charger: A usb.Device object for the charger as retrieved by isdttool.get_device
+    Reboots the charger to boot loader mode.
+    :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'bootloader'),
-                                          ('A4', 'bootloader')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'boot loader'),
+                                          ('A4', 'boot loader'), ('C4EVO', 'app'),
+                                          ('C4EVO', 'boot loader')]):
         return
 
     charger.boot_to_loader()
@@ -222,13 +202,14 @@ def reboot_to_boot_loader(charger: Charger, output_mode='text') -> None:
 
 def verify_firmware(charger: Charger, file: BinaryIO, output_mode: str = 'text'):
     """
-    Verify if the firmware on the charger has the same checksum as the one inside the file.
-
+    This verifies if the firmware image that is flashed to the charger has the same checksum as
+    the one inside the file.
     :param charger: What charger to check
     :param file: The encrypted file as downloaded from ISDT
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'bootloader'), ('A4', 'bootloader')]):
+    if not assure_compatibility(charger, [('C4', 'boot loader'), ('A4', 'boot loader'),
+                                          ('C4EVO', 'boot loader')]):
         return
 
     decrypted_firmware = BytesIO()
@@ -246,12 +227,9 @@ def verify_firmware(charger: Charger, file: BinaryIO, output_mode: str = 'text')
 
 def display_sensors(charger: Charger, output_mode='text') -> None:
     """
-    Query the state of some sensors.
-
-    I hardly know what they mean.
-
-    :param charger: what charger to ask
-    :param output_mode: Either csv, test, json, or dict.
+       Queries the state of some sensors. I hardly know what they mean.
+       :param charger: what charger to ask
+       :param output_mode: Either csv, test, json, or dict.
     """
     if not assure_compatibility(charger, [('C4', 'app')]):
         return
@@ -262,40 +240,30 @@ def display_sensors(charger: Charger, output_mode='text') -> None:
 
 def reboot_to_app(charger: Charger, output_mode='text') -> None:
     """
-    Reboot the charger to app mode.
-
+    Reboots the charger to app mode.
     :param charger: An usb.Device object for the charger as retrieved by isdttool.get_device
     :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'bootloader'),
-                                          ('A4', 'bootloader')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4', 'boot loader'),
+                                          ('A4', 'boot loader'), ('C4EVO', 'app'),
+                                          ('C4EVO', 'boot loader')]):
         return
 
     charger.boot_to_app()
     print_simple_result(charger, output_mode)
 
 
-def write_raw_command(charger: Charger, command: List[int], output_mode: str = 'text'):
+def write_raw_command(charger: Charger, command: bytearray, output_mode: str = 'text'):
     """
-    Send a raw command to the charger.
-
-    Don't use this.
-
+    Sends a raw command to the charger. Don't use this.
     :param charger: The charger to ask.
     :param command: List of ints representing each byte of the command.
     :param output_mode: Either csv, test, json, or dict.
     """
     # Of course, this one doesn't care at all for compatibility.
 
-    payload: bytearray = bytearray()
-    for c in command:
-        if not 0 <= c <= 255:
-            print('{} is out of range.'.format(c))
-            return
-        payload.append(c)
-
-    print('About to write command: {}'.format(bytes(payload).hex()))
-    charger.write_to_charger(payload)
+    print('About to write command: {}'.format(' '.join(f'{x:02x}' for x in command)))
+    charger.write_to_charger(command)
     print('Sent.')
     print_simple_result(charger, output_mode)
 
@@ -305,11 +273,8 @@ def monitor_state(charger: Charger,
                                   Dict[str, Union[str, int, bool]]], None],
                   interval: float, period: Optional[int]) -> None:
     """
-    Call func with the parsed metrics packet if something changed.
-
-    Also does this if the optional period has passed.
-    Never stops, unless there is an unrecoverable exception.
-
+    Calls func with the parsed metrics packet if something changed, or the optional period has
+    passed. Never stops, unless there is an unrecoverable exception.
     :param charger: The charger to poll.
     :param func: The function to call. Must accept a Dict, shouldn't return anything.
     The call reason can be read from the result key '_reason'.
@@ -324,7 +289,7 @@ def monitor_state(charger: Charger,
 
     for i in range(0, 256):
         charger.metrics(i)
-        c_state = parse_packet(charger.read_packet())
+        c_state = parse_packet(charger.read_packet(), charger.model)
         if c_state['_channel exists']:
             max_channel = i
             state.append(c_state)
@@ -344,7 +309,7 @@ def monitor_state(charger: Charger,
         current_state: List[Dict[str, Union[str, int, bool]]] = []
         for i in range(0, max_channel + 1):
             charger.metrics(i)
-            current_state.append(parse_packet(charger.read_packet()))
+            current_state.append(parse_packet(charger.read_packet(), charger.model))
 
         if period is not None and current_iteration % period == 0:
             for c in current_state:

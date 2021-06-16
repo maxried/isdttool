@@ -9,8 +9,7 @@ from io import BytesIO
 
 def decrypt_firmware_image(encrypted: BinaryIO, output: BinaryIO) -> Dict[str, int]:
     """
-    Decrypt the firmware image into output, and return the firmware header as a dict.
-
+    Decrypts the firmware image into output, and return the firmware header as a dict.
     :param encrypted: IO (aka file) where the firmware is stored
     :param output: IO (might also be something different than a file) to write the
     decrypted firmware to.
@@ -92,8 +91,7 @@ def decrypt_firmware_image(encrypted: BinaryIO, output: BinaryIO) -> Dict[str, i
 
 def print_firmware_info(file: BinaryIO) -> None:
     """
-    Print out the header of an encrypted image file.
-
+    Prints out the header of an encrypted image file.
     :param file: the image to analyse.
     """
     decrypted_firmware = BytesIO()

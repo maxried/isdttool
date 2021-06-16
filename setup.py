@@ -24,10 +24,9 @@ setup(
     python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Topic :: System :: Hardware :: Hardware Drivers",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-        "Operating System :: MacOS :: MacOS X",
-        "Operating System :: POSIX :: Linux",
+        "System :: Hardware :: Hardware Drivers",
+        "OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Operating System :: OS Independent",
     ],
 
 )

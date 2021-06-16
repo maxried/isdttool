@@ -2,7 +2,6 @@
 # coding=utf-8
 
 """Retrieve measurements, and such from an ISDT charger."""
-
 import argparse
 import sys
 from argparse import ArgumentParser
@@ -17,12 +16,13 @@ from isdttool.charger import display_metrics, display_version, display_link_test
     read_serial_number, \
     monitor_state
 from isdttool.firmware import decrypt_firmware_image, print_firmware_info
+from isdttool.charger.representation import parse_packet
+from isdttool.charger.actions import print_simple_result
 
 
 def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
     """
-    Decrypt the firmware file, and show the checksums.
-
+    Decrypts the firmware file, and shows the checksums.
     :param encrypted: IO (aka file) to read the fw from
     :param output: IO (aka file) to write the fw to
     """
@@ -35,8 +35,7 @@ def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
 def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
         -> Callable[[Dict[str, Union[str, int, bool]], Dict[str, Union[str, int, bool]]], None]:
     """
-    Return a Callable suitable to be a callback function for Charger.monitor_state.
-
+    Returns a Callable suitable to be a callback function for Charger.monitor_state.
     :param only_interesting: Only run command if a human-readable message is available. Useful for
     instant messaging.
     :param command: Command to call in shell if something happened.
@@ -47,8 +46,7 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
     def handle_monitor_state_event(last_state: Dict[str, Union[str, int, bool]],
                                    event: Dict[str, Union[str, int, bool]]) -> None:
         """
-        Handle an event by calling a command in the shell with an enriched environment.
-
+        Handles an event by calling a command in the shell with an enriched environment.
         :param last_state: The state before the event occurred.
         :param event: The event dictionary, describing the reason as well as providing the
         packet indicating the change.
@@ -77,7 +75,7 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
             if event['dimensions id'] == 4:
                 readable = 'Channel {channel}: Periodic update: empty'.format(**event)
             else:
-                # charged, discharged, storaged [sic!], cycled, analyzed
+                # charged, discharged, storaged, cycled, analyzed
                 if event['mode id'] in [4, 6, 8, 10, 12]:
                     readable = ('Channel {channel}: Periodic update:\n'
                                 '{dimensions string} {chemistry string}: {mode string}\n'
@@ -116,14 +114,11 @@ def handle_monitor_state_event_factory(command: str, only_interesting: bool) \
 
 
 def get_argument_parser() -> ArgumentParser:
-    """Construct an appropriate ArgumentParser."""
-    def hex_int(x: str) -> int:
-        """
-        Parse hex strings as if they were prefixed with `0x`.
+    """Constructs an appropriate ArgumentParser."""
 
-        This is the common representation for USB IDs.
-         :param x: Hex string without the leading `0x`.
-        """
+    def hex_int(x: str) -> int:
+        """Helper function to allow the input of non-prefixed hex
+        integers which is the common representation for USB IDs. """
         return int(x, 16)
 
     parser = ArgumentParser(description='Tool to interact with ISDT C4, and A4 chargers, maybe '
@@ -144,12 +139,20 @@ def get_argument_parser() -> ArgumentParser:
                         help='The platform specific hid path, only needed to distinguish '
                              'multiple chargers. Overrides --vid, and --pid')
 
-    parser.add_argument('--output', default='text', type=str,
+    parser.add_argument('--output', '-o', default='text', type=str,
                         choices=['text', 'json', 'csv', 'dict', 'raw'],
                         help='How the output should be formatted.')
 
     parser.add_argument('--debug', '-d', default=False, action='store_const', const=True,
                         help='Enables protocol debugging.')
+
+    parser.add_argument('--model', '-m', default='auto', type=str,
+                        choices=['auto', 'ignore', 'A4', 'C4', 'C4EVO', 'Q8'],
+                        help='Some commands return model specific data. Choose the correct model.')
+
+    parser.add_argument('--running-in', '-r', default='auto', type=str,
+                        choices=['auto', 'ignore', 'boot loader', 'app'],
+                        help='This parameter is mostly useless.')
 
     subparsers = parser.add_subparsers()
     metrics_parser = subparsers.add_parser('metrics',
@@ -171,7 +174,7 @@ def get_argument_parser() -> ArgumentParser:
     link_test_parser.set_defaults(mode='link-test')
 
     reboot_bl_parser = subparsers.add_parser('boot-loader',
-                                             help='Reboots the charger from app into bootloader.')
+                                             help='Reboots the charger from app into boot loader.')
     reboot_bl_parser.set_defaults(mode='boot-loader')
 
     reboot_app_parser = subparsers.add_parser('boot-app',
@@ -182,8 +185,10 @@ def get_argument_parser() -> ArgumentParser:
     rename_parser = subparsers.add_parser('rename',
                                           help='Rename the device. '
                                                'This causes an immediate reboot.')
-    rename_parser.add_argument('--name', '-n', type=str, required=True,
-                               help='The device\'s new name. 0 to 8 characters.')
+    rename_parser.add_argument('name', type=str,
+                               help='The device\'s new name. 0 to 8 characters. If you provide '
+                                    'an empty string, i. e. just two quotation marks, it will be '
+                                    'cleared.')
     rename_parser.set_defaults(mode='rename')
 
     sensors_parser = subparsers.add_parser('sensors',
@@ -197,7 +202,7 @@ def get_argument_parser() -> ArgumentParser:
     raw_command_parser.add_argument('--i-know-this-one-breaks-things', required=True,
                                     action='store_const', const=True,
                                     help='I swear I don\'t blame anyone.')
-    raw_command_parser.add_argument('--command', type=hex_int, nargs='*', required=True,
+    raw_command_parser.add_argument('command', type=bytearray.fromhex,
                                     help='The raw payload to send to the charger.')
     raw_command_parser.set_defaults(mode='raw-command')
 
@@ -243,11 +248,16 @@ def get_argument_parser() -> ArgumentParser:
                                      'available. Useful for messaging.')
     monitor_parser.set_defaults(mode='monitor')
 
+    decode_parser = subparsers.add_parser('decode',
+                                          help='Provide packets on the command line, and decode '
+                                               'them as if they were sent by the charger.')
+    decode_parser.set_defaults(mode='decode')
+    decode_parser.add_argument('packet', type=bytearray.fromhex, help='Packet to decode.')
     return parser
 
 
 def main() -> None:
-    """Setup argument parser, and run."""
+    """Entry point."""
     parser = get_argument_parser()
     a = parser.parse_args()
 
@@ -262,25 +272,23 @@ def main() -> None:
     #                        'AppleUserUSBHostHIDDevice', 'version'])
     # a = parser.parse_args('metrics --channels 3 --count 0 --interval 2'.split(' '))
     # a = parser.parse_args('--output csv rename --name ä!'.split(' '))
-    # a = parser.parse_args('raw-command --i-know-this-one-breaks-things'
-    #                       ' --command de 01'.split(' '))
-    # a = parser.parse_args('raw-command --i-know-this-one-breaks-things'
-    #                       ' --command f0 ac'.split(' '))
+    # a = parser.parse_args('raw-command --i-know-this-one-breaks-things de01'.split(' '))
+    # a = parser.parse_args('raw-command --i-know-this-one-breaks-things f0ac'.split(' '))
     # a = parser.parse_args(
     #     'decrypt-fw --file /tmp/pycharm_project_398/Firmware.fwd '
     #     '-w /tmp/pycharm_project_398/test.dec'.split(' '))
     # a = parser.parse_args('verify-fw --file Firmware.fwd'.split(' '))
-    # a = parser.parse_args('raw-command --i-know-this-one-breaks-things '
-    #                       '--command ac 01 02 03 04 05 06'.split(' '))
     # a = parser.parse_args('fw-info -f Firmware.fwd'.split(' '))
-    # a = parser.parse_args('--output raw raw-command --i-know-this-one-breaks-things '
-    #                       '--command AC 01 02 03 04 05 06'
-    #                       .split(' '))
+    # a = parser.parse_args('-o raw raw-command --i-know-this-one-breaks-things AC010203040506'
+    #                       .split(' '))  # Sets the Serial Number!
     # a = parser.parse_args('decrypt-fw --file /Users/max/PycharmProjects/isdt/Firmware.fwd '
     #                       '-w /Users/max/PycharmProjects/isdt/C4.bin'.split(' '))
     # a = parser.parse_args('serial'.split(' '))
     # a = parser.parse_args(['monitor', '-c',
     #                        '[ "$_REASON" == "mode id" ] && telegram "$HUMAN_READABLE"'])
+    # a = parser.parse_args('-m ignore decode '
+    #                       'e1433400000000000001000004010000030101001043340000000000000000'
+    #                       ''.split())
 
     isdttool.DEBUG_MODE = a.debug
 
@@ -291,13 +299,21 @@ def main() -> None:
         firmware_decrypt(a.file, a.outfile)
     elif a.mode == 'fw-info':
         print_firmware_info(a.file)
+    elif a.mode == 'decode':
+        if a.model == 'auto':
+            print('Hint: Model auto-detection does not work in decode mode. Setting model to '
+                  '"ignore".', file=sys.stderr)
+        a.model = 'ignore'
+        print(parse_packet(a.packet, a.model))
     else:
         charger = None
         try:
             if a.path == '':
-                charger = get_device(product_id=a.pid, vendor_id=a.vid)
+                charger = get_device(product_id=a.pid, vendor_id=a.vid,
+                                     model_name=a.model, mode=a.running_in)
             else:
-                charger = get_device(path=a.path)
+                charger = get_device(path=a.path,
+                                     model_name=a.model, mode=a.running_in)
         except OSError as exception:
             print('Could not open charger:', str(exception), file=sys.stderr)
             exit(255)
@@ -329,5 +345,5 @@ def main() -> None:
 
 
 def tool_entrypoint() -> None:
-    """The sole reason for this is to wrap the main function for setup.py."""
+    """The sole reason for this is to wrap the main function for setup.py"""
     main()

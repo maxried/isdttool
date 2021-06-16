@@ -7,15 +7,66 @@ from struct import unpack_from
 from typing import Tuple, Optional, Union, Dict, Any
 
 
-def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
+def parse_packet(packet: bytearray, model: Optional[str]) -> \
+        Dict[str, Union[str, int, bool]]:
     """
-    Return a dict which corresponds to the packet.
-
-    Might be wrong sometimes.
-
+    This function returns a dict which corresponds to the packet. Might be wrong sometimes.
     :param packet: The payload as retrieved by read_packet
+    :param model: Different models have different meanings of some fields.
+    Specify either 'A4', 'C4', 'C4EVO', or 'Q8'. If None, ignore.
     :return: A dict with self explaining keys.
     """
+    mode_strings = defaultdict(lambda: 'unknown', {})
+    chemistry_strings = defaultdict(lambda: 'unknown', {})
+    dimension_strings = defaultdict(lambda: 'unknown', {})
+    if model in ['A4', 'C4']:
+        mode_strings.update(
+            {0: 'idling', 1: 'waiting', 2: 'reversed', 3: 'charging', 4: 'charged',
+             5: 'discharging', 6: 'discharged', 7: 'storage', 8: 'storage done',
+             9: 'cycling', 10: 'cycling done', 11: 'analysis', 12: 'analysis done'})
+
+        # ID 4 seems to be unused.
+        # NiMH!!! (6) are overcharged Ni cell. Set to NiMH, and insert a Li-Ion to show up.
+        # Eneloop (7) doesn't seem as if it is any different from NiMH,
+        # maybe has different Delta-V.
+        chemistry_strings.update({
+            0: 'auto', 1: 'LiHv', 2: 'Li-Ion', 3: 'LiPO4', 5: 'NiZn', 6: 'NiMH!!!', 7: 'Eneloop',
+            8: 'NiCd', 9: 'NiMH'
+        })
+
+        if model == 'A4':
+            dimension_strings[0] = 'AA(A)'
+        elif model == 'C4':
+            dimension_strings.update({0: 'AAA', 1: 'AA', 2: '18650', 3: '26650', 4: 'empty'})
+    elif model in ['C4EVO']:
+        # 'Cut off!!' is displayed on some errors like selecting NiMH for a Li-Ion thus making
+        # the charger detect a far too high cell voltage. You can also get it when you frequently
+        # disconnect, and reinsert a battery so quickly that it won't interrupt the charging. You
+        # then also get an "UnKnown Error! 0x400" on the display. What about 14, and 16?
+        # Firmware suggests some mode strings ("Charge State"?),
+        # e.g. "csBattUnload" (empty slot), "csAnalysising" (analysing), but also something like
+        # "tsTrickleChging", and also talks about balancing. Maybe this charger shares firmware
+        # parts with some of their LiIon chargers.
+        mode_strings.update(
+            {0: 'idling', 1: 'waiting', 2: 'reversed', 3: 'charging', 4: 'charged',
+             5: 'discharging', 6: 'discharged', 7: 'storage', 8: 'storage done',
+             9: 'cycling', 10: 'cycling done', 11: 'analysis', 12: 'analysis done',
+             13: 'activate', 15: 'destroy', 17: 'Cut off'})
+
+        # C4EVO doesn't have Eneloop, and NiCd anymore. No big deal though.
+        chemistry_strings.update({0: 'LiHv', 1: 'LiIon', 2: 'LiFe', 3: 'NiZn', 4: 'NiMH'})
+        # The C4EVO has no information about dimensions.
+    elif model in ['Q8']:
+        # I don't have a Q8, but got some metrics dumps in issue #2. Thanks for that.
+        # Unfortunately, the Q8 isn't really verbose with this opcode. There might be more, but
+        # this would require hands-on testing. 
+        mode_strings.update({3: 'charging'})
+        chemistry_strings.update({9: 'LiIon'})
+    elif model == 'ignore':
+        pass  # Everything will be unknown then.
+    else:
+        raise ValueError(f'Model {model} is not supported.')
+
     result: Dict[str, Union[str, int, bool]] = dict()
 
     if packet[0] == 0x01:
@@ -24,14 +75,17 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             # C4 has only a 4 byte response while in app, it misses the device model
             result['_malformed'] = False
             result['result'] = True
-            result['inside bootloader'] = False
+            result['inside boot loader'] = False
         elif len(packet) == 10:  # C4 in BL mode as well as A4 in any mode has a 10 byte response
             result['_malformed'] = False
             result['result'] = True
-            result['inside bootloader'] = packet[1] == 0
+            result['inside boot loader'] = packet[1] == 0
             result['model'] = packet[2:].decode('ascii').rstrip('\x00')
         else:
             result['_malformed'] = True
+    elif packet[0] == 0x03:
+        result['_type'] = 'voltage-test-mode'
+        result['_malformed'] = False
     elif packet[0] == 0xe1:  # Device information
         result['_type'] = 'device information'
         if len(packet) != 31 and len(packet) != 29 and len(packet) != 39:
@@ -53,13 +107,13 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
 
             result['_malformed'] = False
     elif packet[0] == 0xf1:
-        result['_type'] = 'reboot to bootloader'
+        result['_type'] = 'reboot to boot loader'
         if len(packet) != 2:
             result['_malformed'] = True
         else:
             if packet[1] == 0x00:
                 result['rebooting'] = True
-                result['next stop'] = 'bootloader'
+                result['next stop'] = 'boot loader'
                 result['_malformed'] = False
             elif packet[1] == 0x02:
                 result['rebooting'] = False
@@ -90,7 +144,7 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             result['rebooting'] = True
             result['next stop'] = 'app'
             result['_malformed'] = False
-            result['coming from'] = ('bootloader' if len(packet) == 1 else 'app')
+            result['coming from'] = ('boot loader' if len(packet) == 1 else 'app')
     elif packet[0] == 0xdf:
         result['_type'] = 'metrics'
         if len(packet) == 1:
@@ -109,70 +163,13 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             result['channel'] = stats[0]
 
             result['mode id'] = stats[1]
-            if stats[1] == 0:
-                result['mode string'] = 'idling'
-            elif stats[1] == 1:
-                result['mode string'] = 'waiting'
-            elif stats[1] == 2:
-                result['mode string'] = 'reversed'
-            elif stats[1] == 3:
-                result['mode string'] = 'charging'
-            elif stats[1] == 4:
-                result['mode string'] = 'charged'
-            elif stats[1] == 5:
-                result['mode string'] = 'discharging'
-            elif stats[1] == 6:
-                result['mode string'] = 'discharged'
-            elif stats[1] == 7:
-                result['mode string'] = 'storage'
-            elif stats[1] == 8:
-                result['mode string'] = 'storage done'
-            elif stats[1] == 9:  # mode 9 is also reported for activating Ni cells
-                result['mode string'] = 'cycling'
-            elif stats[1] == 10:
-                result['mode string'] = 'cycling done'
-            elif stats[1] == 11:
-                result['mode string'] = 'analysis'
-            elif stats[1] == 12:
-                result['mode string'] = 'analysis done'
-            else:
-                result['mode string'] = 'unknown {}'.format(stats[1])
+            result['mode string'] = mode_strings[stats[1]]
 
-            result['chemistry id'] = stats[2]  # Chemistry id 4 is missing here.
-            if stats[2] == 0:
-                result['chemistry string'] = 'auto'
-            elif stats[2] == 1:
-                result['chemistry string'] = 'LiHv'
-            elif stats[2] == 2:
-                result['chemistry string'] = 'Li-Ion'
-            elif stats[2] == 3:
-                result['chemistry string'] = 'LiPO4'
-            elif stats[2] == 5:
-                result['chemistry string'] = 'NiZn'
-            elif stats[2] == 6:
-                result['chemistry string'] = 'NiMH!!!'  # !!! means overcharged.
-            elif stats[2] == 7:
-                result['chemistry string'] = 'Eneloop'
-            elif stats[2] == 8:
-                result['chemistry string'] = 'NiCd'
-            elif stats[2] == 9:
-                result['chemistry string'] = 'NiMH'
-            else:
-                result['chemistry string'] = 'Unknown'
+            result['chemistry id'] = stats[2]
+            result['chemistry string'] = chemistry_strings[stats[2]]
 
             result['dimensions id'] = stats[3]
-            if stats[3] == 0:
-                result['dimensions string'] = 'AAA'
-            elif stats[3] == 1:
-                result['dimensions string'] = 'AA'
-            elif stats[3] == 2:
-                result['dimensions string'] = '18650'
-            elif stats[3] == 3:
-                result['dimensions string'] = '26650'
-            elif stats[3] == 4:
-                result['dimensions string'] = 'empty'
-            else:
-                result['dimensions string'] = 'Unknown'
+            result['dimensions string'] = dimension_strings[stats[3]]
 
             result['temperature'] = stats[4]
             result['internal_temperature'] = stats[5]
@@ -245,24 +242,28 @@ def parse_packet(packet: bytearray) -> Dict[str, Union[str, int, bool]]:
             result['unknown voltage 7'] = voltages[6]
             result['unknown voltage 8'] = voltages[7]
             result['unknown voltage 9'] = voltages[8]
+    elif packet[0] == 0xe5:
+        result['_type'] = 'channel-metrics'
+        result['channel'], result['psu voltage'], result['charging voltage'], \
+            result['current'], result['temperature'] = unpack_from('<BHHHxxB', packet, 1)
     else:
         result['_type'] = 'unknown'
 
     return result
 
 
-def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]]) -> str:
+def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]], model: str) -> str:
     """
     Convert a packet to a human readable string.
-
-    :param response: The packet data as received by read_packet, or preparsed as Dict.
+    :param response: The packet data as received by read_packet, or preparsed as dict.
+    :param model: Different models have different meanings of some fields.
     :return: A human readable string.
     """
     result: Optional[str]
     packet: defaultdict[str, Union[str, int, bool]]
 
     if isinstance(response, bytearray):
-        packet = defaultdict(lambda: 'n/a', parse_packet(response))
+        packet = defaultdict(lambda: 'n/a', parse_packet(response, model))
     elif isinstance(response, dict):
         packet = defaultdict(lambda: 'n/a', **response)
     else:
@@ -270,16 +271,16 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]]) 
 
     if packet['_type'] == 'link test':
         result = 'Link test ' + 'succeeded' if packet['result'] else 'failed'
-        result += '\nCurrently running the ' + ('bootloader' if packet['inside bootloader'] else
+        result += '\nCurrently running the ' + ('boot loader' if packet['inside boot loader'] else
                                                 'app')
     elif packet['_type'] == 'device information':
         result = ('Model name: {}\n'
                   'Hardware version {}\n'
-                  'Bootloader version {}\n'
+                  'Boot loader version {}\n'
                   'OS/App version {}').format(packet['model name'], packet['hw version'],
                                               packet['bl version'], packet['app version'])
-    elif packet['_type'] == 'reboot to bootloader':
-        result = 'Rebooting to bootloader.'
+    elif packet['_type'] == 'reboot to boot loader':
+        result = 'Rebooting to boot loader.'
     elif packet['_type'] == 'rename device':
         result = 'Device renamed, rebooting.'
     elif packet['_type'] == 'reboot to app':

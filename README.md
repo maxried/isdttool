@@ -1,6 +1,6 @@
 # isdttool
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/4fe6e14e24c84419889c7f7da9e683d9)](https://www.codacy.com/gh/maxried/isdttool/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=maxried/isdttool&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/b36416d64e8b45be83b98ac2126e5215)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=maxried/isdt&amp;utm_campaign=Badge_Grade)
 
 ## Important Notes
 This software is not sponsored by ISDT, or anyone else. It was created by observing the protocol between the updater, then the charger, and fuzzing the charger, and observing its behavior. Chargers are dangerous tools. You should never use them unattended. Batteries can leak, catch fire, etc. This tool comes with no warranties whatsoever. If bad things happen, I'm not responsible.
@@ -8,9 +8,9 @@ This software is not sponsored by ISDT, or anyone else. It was created by observ
 ## Summary
 
 `isdttool` is a utility to retrieve information such as the current charging status from ISDT chargers. It can output it as plain text, json, and csv, so it should be suitable for automation. Tested models are
-  - ISDT C4
-  - ISDT A4
-  - DNT Smart PRO (which just is a rebranded ISDT C4 with old firmware)
+- ISDT C4
+- ISDT A4
+- DNT Smart PRO (which just is a rebranded ISDT C4 with old firmware)
 
 It should be compatible with other chargers by ISDT, at least the ones that are not primarily for charging LiPo. E.g. N8, or N24 should be compatible, but it's unknown if models like P20, or D1 work. It requires a USB connection. ISDT chargers with firmware upgrade capability should at least be detectable by this tool.
 
@@ -47,7 +47,7 @@ Usage examples:
     $ isdttool version
     Model name: C4
     Hardware version 1.0.0.4
-    Bootloader version 1.0.0.3
+    Boot loader version 1.0.0.3
     OS/App version 1.1.0.16
     
     $ isdttool rename --name Test
@@ -61,7 +61,7 @@ Usage examples:
     Checksum OK
     
     $ isdttool boot-loader
-    Rebooting to bootloader.
+    Rebooting to boot loader.
     $ isdttool verify-fw --file A4.bin
     The checksum matches the checksum of the image in flash.
     
@@ -85,5 +85,5 @@ Usage examples:
     $ isdttool --path "IOService:/AppleACPIPlatformExpert/PCI0@0/[...]" version
     Model name: A4
     Hardware version 1.2.0.0
-    Bootloader version 1.0.0.1
+    Boot loader version 1.0.0.1
     OS/App version 1.0.0.20
