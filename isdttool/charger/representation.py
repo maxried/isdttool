@@ -73,9 +73,10 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
         result['_type'] = 'link test'
         if len(packet) == 4:
             # C4 has only a 4 byte response while in app, it misses the device model
+            # C4EVO always misses the model but when in bl mode it indicates the mode...
             result['_malformed'] = False
             result['result'] = True
-            result['inside boot loader'] = False
+            result['inside boot loader'] = packet[1] == 0x91
         elif len(packet) == 10:  # C4 in BL mode as well as A4 in any mode has a 10 byte response
             result['_malformed'] = False
             result['result'] = True
