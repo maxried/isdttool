@@ -283,9 +283,15 @@ class Charger:
 
     def channel_sensors(self, channel: int) -> None:
         """
-        Reads some channel measurements.
+        Reads some channel measurements. Found on C4EVO.
         """
         self.write_to_charger(bytearray([0xe4, channel]))
+
+    def channel_voltages(self) -> None:
+        """
+        Reads some channel measurements. Like channel_sensors, but without parameter. Found on Q8.
+        """
+        self.write_to_charger(bytearray([0xe4]))
 
     def boot_to_app(self) -> None:
         """

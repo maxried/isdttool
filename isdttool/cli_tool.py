@@ -15,10 +15,10 @@ from isdttool.charger import display_metrics, display_version, display_link_test
     reboot_to_app, rename_device, display_sensors, write_raw_command, verify_firmware, \
     read_serial_number, \
     monitor_state
-from isdttool.charger.actions import display_channel_sensors
+from isdttool.charger.actions import display_channel_sensors, display_channel_voltages
 from isdttool.charger.charger import enumerate_devices
 from isdttool.firmware import decrypt_firmware_image, print_firmware_info
-from isdttool.charger.representation import parse_packet
+from isdttool.charger.representation import parse_packet, packet_to_str
 
 
 def firmware_decrypt(encrypted: BinaryIO, output: BinaryIO) -> None:
@@ -303,7 +303,6 @@ def main() -> None:
     # a = parser.parse_args('-m ignore decode '
     #                       'e1433400000000000001000004010000030101001043340000000000000000'
     #                       ''.split())
-
     isdttool.DEBUG_MODE = a.debug
 
     if a.mode == '':
@@ -357,6 +356,8 @@ def main() -> None:
             display_sensors(charger, a.output)
         elif a.mode == 'channel-sensors':
             display_channel_sensors(charger, a.channel, a.output)
+        elif a.mode == 'channel-voltages':
+            display_channel_voltages(charger, a.output)
         elif a.mode == 'raw-command':
             write_raw_command(charger, a.command, a.output)
         elif a.mode == 'verify-fw':

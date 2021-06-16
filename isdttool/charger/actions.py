@@ -240,7 +240,7 @@ def display_sensors(charger: Charger, output_mode='text') -> None:
 
 def display_channel_sensors(charger: Charger, channel: int, output_mode='text') -> None:
     """
-       Queries the state of some channel sensors.
+       Queries the state of some channel sensors on C4EVO
        :param charger: what charger to ask
        :param channel: channel ID, 0 indexed
        :param output_mode: Either csv, test, json, or dict.
@@ -249,6 +249,19 @@ def display_channel_sensors(charger: Charger, channel: int, output_mode='text') 
         return
 
     charger.channel_sensors(channel)
+    print_simple_result(charger, output_mode)
+
+
+def display_channel_voltages(charger: Charger, output_mode='text') -> None:
+    """
+       Queries the state of some channel voltages on Q8.
+       :param charger: what charger to ask
+       :param output_mode: Either csv, test, json, or dict.
+    """
+    if not assure_compatibility(charger, [('Q8', 'app')]):
+        return
+
+    charger.channel_voltages()
     print_simple_result(charger, output_mode)
 
 

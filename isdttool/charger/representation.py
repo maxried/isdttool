@@ -244,10 +244,20 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
             result['unknown voltage 8'] = voltages[7]
             result['unknown voltage 9'] = voltages[8]
     elif packet[0] == 0xe5:
-        result['_type'] = 'channel-metrics'
-        result['_malformed'] = False
-        result['channel'], result['psu voltage'], result['charging voltage'], \
-            result['current'], result['temperature'] = unpack_from('<BHHHxxB', packet, 1)
+        if model == 'C4EVO':
+            result['_type'] = 'channel metrics'
+            result['_malformed'] = False
+            result['channel'], result['psu voltage'], result['charging voltage'], \
+                result['current'], result['temperature'] = unpack_from('<BHHHxxB', packet, 1)
+        else:
+            result['_type'] = 'channel voltages'
+            result['channel count'], result['psu voltage'], result['some 32 bit integer'], \
+                result['total voltage'], result['another 32 bit integer'] = \
+                unpack_from('<BHIHI', packet, 1)
+            for index, voltage in \
+                    enumerate(unpack_from(f'<{result["channel count"]}H', packet, 14)):
+                result[f'channel voltage {index}'] = voltage
+            result['_malformed'] = False
     else:
         result['_type'] = 'unknown'
 
@@ -330,12 +340,17 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]], 
                   'Unknown Voltage 6: {unknown voltage 6} mV\n'
                   'Unknown Voltage 7: {unknown voltage 7} mV\n'
                   'Unknown Voltage 8: {unknown voltage 8} mV\n').format(**packet)
-    elif packet['_type'] == 'channel-metrics':
+    elif packet['_type'] == 'channel metrics':
         result = f'Channel: {packet["channel"]}\n' \
                  f'PSU Voltage: {packet["psu voltage"]} mV\n' \
                  f'Charging voltage: {packet["charging voltage"]} mV\n' \
                  f'Current: {packet["current"]} mA\n' \
-                 f'Temperature: {packet["temperature"]} °C'
+                 f'Temperature: {packet["temperature"]} °C\n'
+    elif packet['_type'] == 'channel voltages':
+        result = f'Channel Count: {packet["channel count"]}\n' \
+                 f'PSU Voltage: {packet["psu voltage"]} mV\n'
+        for i in range(packet['channel count']):
+            result += f'Channel {i} Voltage: {packet[f"channel voltage {i}"]} mV\n'
     else:
         result = None
 
