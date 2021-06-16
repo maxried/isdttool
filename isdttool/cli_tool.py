@@ -205,6 +205,10 @@ def get_argument_parser() -> ArgumentParser:
                                  help='0 based channel ID.')
     channel_sensors.set_defaults(mode='channel-sensors')
 
+    channel_voltages = subparsers.add_parser('channel-voltages',
+                                             help='Shows some voltages.')
+    channel_voltages.set_defaults(mode='channel-voltages')
+
     sensors_parser = subparsers.add_parser('sensors',
                                            help='Displays a bank of sensors for most of which I '
                                                 'have no idea what they mean.')

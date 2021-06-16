@@ -251,13 +251,19 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
                 result['current'], result['temperature'] = unpack_from('<BHHHxxB', packet, 1)
         else:
             result['_type'] = 'channel voltages'
-            result['channel count'], result['psu voltage'], result['some 32 bit integer'], \
-                result['total voltage'], result['another 32 bit integer'] = \
-                unpack_from('<BHIHI', packet, 1)
-            for index, voltage in \
-                    enumerate(unpack_from(f'<{result["channel count"]}H', packet, 14)):
-                result[f'channel voltage {index}'] = voltage
             result['_malformed'] = False
+            if len(packet) < 14:
+                result['_malformed'] = True
+            else:
+                result['channel count'], result['psu voltage'], result['some 32 bit integer'], \
+                    result['total voltage'], result['another 32 bit integer'] = \
+                    unpack_from('<BHIHI', packet, 1)
+                if len(packet) < result['channel count'] * 2 + 14:
+                    result['_malformed'] = True
+                else:
+                    for index, voltage in \
+                            enumerate(unpack_from(f'<{result["channel count"]}H', packet, 14)):
+                        result[f'channel voltage {index}'] = voltage
     else:
         result['_type'] = 'unknown'
 
@@ -347,10 +353,13 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]], 
                  f'Current: {packet["current"]} mA\n' \
                  f'Temperature: {packet["temperature"]} °C\n'
     elif packet['_type'] == 'channel voltages':
-        result = f'Channel Count: {packet["channel count"]}\n' \
-                 f'PSU Voltage: {packet["psu voltage"]} mV\n'
-        for i in range(packet['channel count']):
-            result += f'Channel {i} Voltage: {packet[f"channel voltage {i}"]} mV\n'
+        if packet['_malformed']:
+            result = None
+        else:
+            result = f'Channel Count: {packet["channel count"]}\n' \
+                     f'PSU Voltage: {packet["psu voltage"]} mV\n'
+            for i in range(packet['channel count']):
+                result += f'Channel {i} Voltage: {packet[f"channel voltage {i}"]} mV\n'
     else:
         result = None
 

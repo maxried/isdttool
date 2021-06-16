@@ -33,11 +33,10 @@ def assure_compatibility(charger: Charger, configurations: List[Tuple[str, str]]
     If debug_mode is True, this skips the check, and always returns True.
     :param charger: The charger to test.
     :param configurations: A list of tuples like [('A4', 'boot'), ('C4', 'app')]
-    :param silent: If True, don't print out error messages.
     :return: True, if charger matches.
     """
-    for c in configurations:
-        if charger.model in (c[0], 'ignore') and charger.mode in (c[1], 'ignore'):
+    for model, mode in configurations:
+        if charger.model in (model, 'ignore') and charger.mode in (mode, 'ignore'):
             return True
 
     print('This command is currently not supported by the model "{}" in {} mode.\n'
