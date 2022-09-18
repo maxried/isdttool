@@ -1,7 +1,5 @@
 # isdttool
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/b36416d64e8b45be83b98ac2126e5215)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=maxried/isdt&amp;utm_campaign=Badge_Grade)
-
 ## Important Notes
 This software is not sponsored by ISDT, or anyone else. It was created by observing the protocol between the updater, then the charger, and fuzzing the charger, and observing its behavior. Chargers are dangerous tools. You should never use them unattended. Batteries can leak, catch fire, etc. This tool comes with no warranties whatsoever. If bad things happen, I'm not responsible.
 
@@ -21,6 +19,10 @@ It should be compatible with other chargers by ISDT, at least the ones that are 
 The only dependency is `hidapi`, which should be automatically installed if you use `pip` to install `isdttool`.
 
     pip install isdttool
+
+Not every user is allowed to access human interface devices on every platform. If you're on some Linux, you likely have to add some udev rules if you want to run `isdttool` as an unprivileged user. A quick fix would be to save the following file in `/etc/udev/rules.d/99-isdt.rules`, and run `udev trigger`:
+
+    ATTRS{idVendor}=="28e9", MODE="0666"
 
 ## Usage
 
