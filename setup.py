@@ -12,7 +12,7 @@ setup(
     name='isdttool',
     version='1.0.0',
     packages=find_packages(),
-    url='https://github.com/maxried/isdt',
+    url='https://github.com/maxried/isdttool',
     license='GPLv3',
     install_requires='hidapi~=0.10.1',
     author='Max Ried',
