@@ -2,14 +2,17 @@
 
 """Well, these are unit tests."""
 
+import socket
+import threading
 import unittest
 from typing import List
 
 # noinspection PyProtectedMember
-from isdttool import set_debug
+from isdttool import set_debug, get_device
 from .charger.charger import Charger, __generate_raw_frames__, __escape_synchronization__, \
     __unescape_synchronization__
 from .charger.representation import parse_packet
+from .charger.transport import TcpTransport, REPORT_SIZE
 
 
 class MyTestCase(unittest.TestCase):
@@ -190,6 +193,102 @@ class MyTestCase(unittest.TestCase):
                                     b'\x00\x00\x00\x7f\x00\x00\x4f\xff'),
                           bytearray(b'\x01\x0f\xff\xff\xfb\x14\x44\x9f\x44\x43\x00\x00\x7f\x00\x00'
                                     b'\x00\x90')])
+
+
+A4_VERSION_REPORT = (b'\x02\x2d\xaa\x21\x27\xe1\x41\x34\x00\x00\x00\x00\x00\x00\x01\x02'
+                     b'\x00\x00\x01\x00\x00\x01\x01\x00\x00\x11\x41\x34\x00\x00\x00\x00'
+                     b'\x00\x00\x00\x00\x00\x00\x12\x08\x1d\x11\x15\x3b\xc2\x00\x00\x00'
+                     b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+
+
+class FakeBridge:
+    """A TCP server on localhost that accepts one connection, and runs a handler on it."""
+
+    def __init__(self, handler) -> None:
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.bind(('127.0.0.1', 0))
+        self.server.listen(1)
+        self.port = self.server.getsockname()[1]
+        self.received: List[bytes] = []
+        self.thread = threading.Thread(target=self.__run__, args=(handler,), daemon=True)
+        self.thread.start()
+
+    def __run__(self, handler) -> None:
+        connection, _ = self.server.accept()
+        with connection:
+            handler(self, connection)
+        self.server.close()
+
+    def receive_report(self, connection: socket.socket) -> bytes:
+        """Receives exactly one report."""
+        data = b''
+        while len(data) < REPORT_SIZE:
+            chunk = connection.recv(REPORT_SIZE - len(data))
+            if not chunk:
+                break
+            data += chunk
+        self.received.append(data)
+        return data
+
+
+class TcpTransportTestCase(unittest.TestCase):
+    def test_write_pads_to_report_size(self) -> None:
+        bridge = FakeBridge(lambda b, c: b.receive_report(c))
+        transport = TcpTransport('127.0.0.1', bridge.port)
+        self.assertEqual(transport.write(b'\x01\x02'), REPORT_SIZE)
+        bridge.thread.join(2)
+        transport.close()
+        self.assertEqual(bridge.received, [b'\x01\x02' + b'\x00' * 62])
+
+    def test_write_rejects_oversized_report(self) -> None:
+        bridge = FakeBridge(lambda b, c: None)
+        transport = TcpTransport('127.0.0.1', bridge.port)
+        with self.assertRaises(ValueError):
+            transport.write(b'\x00' * (REPORT_SIZE + 1))
+        transport.close()
+
+    def test_read_reassembles_split_report(self) -> None:
+        def handler(_bridge, connection) -> None:
+            connection.sendall(A4_VERSION_REPORT[:10])
+            connection.sendall(A4_VERSION_REPORT[10:])
+
+        bridge = FakeBridge(handler)
+        transport = TcpTransport('127.0.0.1', bridge.port)
+        self.assertEqual(transport.read(REPORT_SIZE, 2000), A4_VERSION_REPORT)
+        transport.close()
+
+    def test_read_timeout_returns_empty(self) -> None:
+        release = threading.Event()
+        bridge = FakeBridge(lambda b, c: release.wait(2))
+        transport = TcpTransport('127.0.0.1', bridge.port)
+        self.assertEqual(transport.read(REPORT_SIZE, 50), b'')
+        release.set()
+        transport.close()
+
+    def test_read_raises_when_bridge_closes(self) -> None:
+        bridge = FakeBridge(lambda b, c: None)
+        transport = TcpTransport('127.0.0.1', bridge.port)
+        bridge.thread.join(2)
+        with self.assertRaises(ConnectionError):
+            transport.read(REPORT_SIZE, 2000)
+        transport.close()
+
+    def test_charger_over_tcp(self) -> None:
+        def handler(b, connection) -> None:
+            b.receive_report(connection)  # The version request
+            connection.sendall(A4_VERSION_REPORT)
+
+        bridge = FakeBridge(handler)
+        charger = get_device(model_name='A4', mode='ignore', host='127.0.0.1', port=bridge.port)
+        charger.version()
+        self.assertIsNotNone(parse_packet(charger.read_packet(), model='ignore'))
+        charger.close()
+        request = bytes(__generate_raw_frames__(bytearray([0xe0]))[0])
+        self.assertEqual(bridge.received[0], request + b'\x00' * (REPORT_SIZE - len(request)))
+
+    def test_host_excludes_usb_options(self) -> None:
+        with self.assertRaises(ValueError):
+            get_device(host='127.0.0.1', path='/dev/hidraw0')
 
 
 if __name__ == '__main__':

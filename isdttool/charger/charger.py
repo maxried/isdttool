@@ -3,13 +3,13 @@
 """This file contains functions to parse incoming packets, and to construct outgoing packets.
 It cares about checksums, and stuff."""
 import sys
-from typing import Optional, List, Tuple
-
-# noinspection PyPackageRequirements
-import hid
+from typing import Optional, List, Tuple, Union
 
 import isdttool
 from .representation import parse_packet
+from .transport import UsbTransport, TcpTransport, DEFAULT_TCP_PORT
+
+Transport = Union[UsbTransport, TcpTransport]
 
 
 def debug_log(*args, **kwargs) -> None:
@@ -111,10 +111,10 @@ def __generate_raw_frames__(payload: bytearray) -> List[bytearray]:
 
 
 class Charger:
-    """Represents a charger. Basically only wraps an hid device, and supplies read/write
-    functions. """
+    """Represents a charger. Basically only wraps a transport (see transport.py), and supplies
+    read/write functions. """
 
-    def __init__(self, device: Optional[hid.device], model: str, mode: str) -> None:
+    def __init__(self, device: Optional[Transport], model: str, mode: str) -> None:
         self.__device__ = device
         self.model = model
         self.mode = mode
@@ -217,6 +217,13 @@ class Charger:
             debug_log('Writing', bytes(f).hex())
             self.__device__.write(f)
 
+    def close(self) -> None:
+        """
+        Closes the connection to the charger.
+        """
+        if self.__device__ is not None:
+            self.__device__.close()
+
     def link_test(self) -> None:
         """
         Sends a well-supported nop command.
@@ -316,7 +323,8 @@ class Charger:
 
 def get_device(model_name: str = 'auto', mode: str = 'auto',
                product_id: Optional[int] = None, vendor_id: Optional[int] = None,
-               path: Optional[str] = None) -> Charger:
+               path: Optional[str] = None, host: Optional[str] = None,
+               port: Optional[int] = None) -> Charger:
     """
     Looks for a charger, and returns the first one found. This deserves a little more
     sophistication. Both C4, and A4 share the same IDs. Additionally, the A4 identifies itself
@@ -327,15 +335,18 @@ def get_device(model_name: str = 'auto', mode: str = 'auto',
     :param vendor_id: USB vendor_id id of the device to open. Mutually exclusive with path.
     :param path: hid path. Platform specific format. Refer to `hidtest`, or the hidapi
     documentation. Mutually exclusive with product_id, and vendor_id.
+    :param host: Connect over TCP to a bridge on this host, instead of opening a local USB
+    device. Mutually exclusive with path, product_id, and vendor_id.
+    :param port: TCP port of the bridge. Defaults to 24000. Only used with host.
     """
-    hid_device = hid.device()
-
-    if path is not None:
-        hid_device.open_path(bytes(path, encoding='utf8'))
+    if host is not None:
+        if path is not None or product_id is not None or vendor_id is not None:
+            raise ValueError('host is mutually exclusive with path, product_id, and vendor_id.')
+        transport: Transport = TcpTransport(host, DEFAULT_TCP_PORT if port is None else port)
     else:
-        hid_device.open(vendor_id=vendor_id, product_id=product_id)
+        transport = UsbTransport(path=path, vendor_id=vendor_id, product_id=product_id)
 
-    return Charger(model=model_name, mode=mode, device=hid_device)
+    return Charger(model=model_name, mode=mode, device=transport)
 
 
 def enumerate_devices(vendor_id: int = 0x28e9, product_id: int = 0x028a):
@@ -343,4 +354,7 @@ def enumerate_devices(vendor_id: int = 0x28e9, product_id: int = 0x028a):
     :param product_id: Fill in the product id. Hint: It's always 0x028a.
     :param vendor_id: Fill in the vendor id. Hint: It's always 0x28e9
     """
+    # noinspection PyPackageRequirements
+    import hid
+
     return hid.enumerate(vendor_id, product_id)
