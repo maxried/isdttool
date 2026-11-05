@@ -12,9 +12,9 @@ setup(
     name='isdttool',
     version='1.0.0',
     packages=find_packages(),
-    url='https://github.com/maxried/isdt',
+    url='https://github.com/maxried/isdttool',
     license='GPLv3',
-    install_requires='hidapi~=0.10.1',
+    install_requires='hidapi>=0.10.1',
     author='Max Ried',
     author_email='maxried@posteo.de',
     description='Tool to retrieve information from ISDT chargers with USB connection.',
@@ -24,8 +24,8 @@ setup(
     python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
-        "System :: Hardware :: Hardware Drivers",
-        "OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Topic :: System :: Hardware :: Hardware Drivers",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
 
