@@ -192,5 +192,70 @@ class MyTestCase(unittest.TestCase):
                                     b'\x00\x90')])
 
 
+def n24_frame(hex_string: str) -> List[bytearray]:
+    """A 64-byte report as captured from an N24."""
+    return [bytearray.fromhex(hex_string)]
+
+
+class N24TestCase(unittest.TestCase):
+    def parse(self, hex_string: str):
+        charger: Charger = Charger(None, model='N24', mode='app')
+        return parse_packet(charger.read_packet(n24_frame(hex_string)), model='N24')
+
+    def test_charging(self) -> None:
+        result = self.parse('0226aa2120df02030901161563ab05e203a701a10615000800000023000000007c'
+                            '7f080000e41a071f090a01f600000000000000000000000000000000000000')
+        self.assertFalse(result['_malformed'])
+        self.assertEqual(result['channel'], 2)
+        self.assertEqual(result['mode string'], 'charging')
+        self.assertEqual(result['chemistry string'], 'NiMH')
+        self.assertEqual(result['dimensions string'], 'AA(A)')
+        self.assertEqual(result['progress'], 99)
+        self.assertEqual(result['charging voltage'], 1451)
+        self.assertEqual(result['charging current'], 994)
+        self.assertEqual(result['resistance'], 423)
+        self.assertNotIn('termination string', result)
+
+    def test_charged(self) -> None:
+        result = self.parse('0226aa2120df000409011817029e050000a40100004703340100007e04000000ff'
+                            '00000000a71a071f090a01f600000000000000000000000000000000000000')
+        self.assertFalse(result['_malformed'])
+        self.assertEqual(result['mode string'], 'charged')
+        self.assertEqual(result['progress'], 100)
+        self.assertEqual(result['termination id'], 2)
+        self.assertEqual(result['termination string'], '-dV')
+        self.assertEqual(result['resistance'], 420)
+
+    def test_pre_charge(self) -> None:
+        result = self.parse('0226aa2120df00030401181701790763008501c2000100000000001900000000ff'
+                            '2f1e0000e91a071f090a01f600000000000000000000000000000000000000')
+        self.assertEqual(result['chemistry string'], 'pre-charge')
+        self.assertEqual(result['progress'], 1)
+        self.assertEqual(result['charging current'], 99)
+
+    def test_empty(self) -> None:
+        result = self.parse('0226aa2120df00000904161500940200000000000000000000000000000000007c'
+                            '210400008f1a071f090a01f600000000000000000000000000000000000000')
+        self.assertEqual(result['mode string'], 'idling')
+        self.assertEqual(result['dimensions string'], 'empty')
+
+    def test_escaped_sync_byte(self) -> None:
+        # The trailing data contains 0xAA, which the charger escapes as 0xAA 0xAA.
+        result = self.parse('0227aa2120df13040901151501920500002f010000ea00530000003a01000000ff'
+                            '00000000aaaa071f090a01f600000000000000000000000000000000000000')
+        self.assertFalse(result['_malformed'])
+        self.assertEqual(result['channel'], 0x13)
+        self.assertEqual(result['charging voltage'], 1426)
+
+    def test_channel_beyond_24(self) -> None:
+        result = self.parse('0226aa2120df18b7ff1f0000005ccc5cccff1fc0b5ff1f0a000000000000000000'
+                            'c0b5ff1fab1a071f090a01f600000000000000000000000000000000000000')
+        self.assertFalse(result['_channel exists'])
+
+    def test_model_alias(self) -> None:
+        from .charger.charger import MODEL_ALIASES
+        self.assertEqual(MODEL_ALIASES['NXHOSTP'], 'N24')
+
+
 if __name__ == '__main__':
     unittest.main()

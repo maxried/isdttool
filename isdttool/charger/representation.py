@@ -13,12 +13,13 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
     This function returns a dict which corresponds to the packet. Might be wrong sometimes.
     :param packet: The payload as retrieved by read_packet
     :param model: Different models have different meanings of some fields.
-    Specify either 'A4', 'C4', 'C4EVO', or 'Q8'. If None, ignore.
+    Specify either 'A4', 'C4', 'C4EVO', 'N24', or 'Q8'. If None, ignore.
     :return: A dict with self explaining keys.
     """
     mode_strings = defaultdict(lambda: 'unknown', {})
     chemistry_strings = defaultdict(lambda: 'unknown', {})
     dimension_strings = defaultdict(lambda: 'unknown', {})
+    termination_strings = defaultdict(lambda: 'unknown', {})
     if model in ['A4', 'C4']:
         mode_strings.update(
             {0: 'idling', 1: 'waiting', 2: 'reversed', 3: 'charging', 4: 'charged',
@@ -56,6 +57,24 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
         # C4EVO doesn't have Eneloop, and NiCd anymore. No big deal though.
         chemistry_strings.update({0: 'LiHv', 1: 'LiIon', 2: 'LiFe', 3: 'NiZn', 4: 'NiMH'})
         # The C4EVO has no information about dimensions.
+    elif model in ['N24']:
+        # Decoded from 85 charges of NiMH, NiCd, and (by mistake) alkaline AA, and AAA cells.
+        # Only the values below were ever seen. The N24 only charges, so the C4 modes for
+        # discharging, storage, cycling, and analysis probably don't exist here.
+        mode_strings.update({0: 'idling', 3: 'charging', 4: 'charged'})
+
+        # The N24 can't tell NiMH from NiCd, both are reported as 9. It rejects cells it
+        # refuses to charge with 6: alkalines, some NiCd, and full NiMH that were briefly
+        # disconnected. 4 is a gentle pre-charge with about 100 mA. Beware, alkalines can end
+        # up here, too. 0, and 2 were only seen on empty slots.
+        chemistry_strings.update({0: 'auto', 4: 'pre-charge', 6: 'rejected', 9: 'NiMH'})
+
+        # The N24 doesn't distinguish AA from AAA.
+        dimension_strings.update({1: 'AA(A)', 4: 'empty'})
+
+        # When charged, the progress field holds the reason why charging stopped.
+        termination_strings.update({1: 'voltage limit', 2: '-dV', 5: '0dV',
+                                    8: 'pre-charge failed'})
     elif model in ['Q8']:
         # I don't have a Q8, but got some metrics dumps in issue #2. Thanks for that.
         # Unfortunately, the Q8 isn't really verbose with this opcode. There might be more, but
@@ -148,10 +167,13 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
             result['coming from'] = ('boot loader' if len(packet) == 1 else 'app')
     elif packet[0] == 0xdf:
         result['_type'] = 'metrics'
-        if len(packet) == 1:
+        if len(packet) == 1 or (model == 'N24' and len(packet) > 1 and packet[1] >= 24):
+            # The N24 does not report missing channels. Asked for channel 24, or higher, it
+            # replies with whatever is in its memory after the 24th channel.
             result['_channel exists'] = False
             result['_malformed'] = False
-        elif len(packet) != 0x1a:
+        elif len(packet) != 0x1a and not (model == 'N24' and len(packet) == 0x20):
+            # The N24 appends 6 bytes of unknown meaning.
             result['_malformed'] = True
         else:
             # Unfortunately, it seems as if the values on the chargers GUI are ceil-rounded,
@@ -186,6 +208,14 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
             # the cell temperature.
 
             result['progress'] = stats[6]
+
+            if model == 'N24':
+                # While charging, progress is an estimate in percent. Afterwards, it is the
+                # termination reason.
+                if stats[1] == 4:
+                    result['termination id'] = stats[6]
+                    result['termination string'] = termination_strings[stats[6]]
+                    result['progress'] = 100
 
             result['charging voltage'] = stats[7]
             result['charging current'] = stats[8]
@@ -312,6 +342,8 @@ def packet_to_str(response: Union[bytearray, Dict[str, Union[str, int, bool]]], 
                       '{voltage:>6.3f} V * {current:>6.3f} A, '
                       '{resistance:>3d} Ohm, {time} s'
                       ).format(voltage=voltage, current=current, **packet)
+            if 'termination string' in packet:
+                result += ', stopped by {}'.format(packet['termination string'])
         else:
             result = 'Channel does not exist.'
     elif packet['_type'] == 'sensors':

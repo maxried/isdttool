@@ -127,7 +127,8 @@ def display_metrics(charger: Charger, interval: float, count: int, channels: Lis
        :param channels: List of the zero-indexed channel numbers to query.
        :param output_mode: Either csv, test, json, or dict.
     """
-    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4EVO', 'app')]):
+    if not assure_compatibility(charger, [('C4', 'app'), ('A4', 'app'), ('C4EVO', 'app'),
+                                          ('N24', 'app')]):
         return
 
     step: int = 0
