@@ -14,7 +14,7 @@ setup(
     packages=find_packages(),
     url='https://github.com/maxried/isdttool',
     license='GPLv3',
-    install_requires='hidapi~=0.10.1',
+    install_requires='hidapi>=0.10.1',
     author='Max Ried',
     author_email='maxried@posteo.de',
     description='Tool to retrieve information from ISDT chargers with USB connection.',
