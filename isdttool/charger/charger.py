@@ -114,10 +114,14 @@ class Charger:
     """Represents a charger. Basically only wraps a transport (see transport.py), and supplies
     read/write functions. """
 
-    def __init__(self, device: Optional[Transport], model: str, mode: str) -> None:
+    def __init__(self, device: Optional[Transport], model: str, mode: str,
+                 read_timeout_ms: int = 200) -> None:
         self.__device__ = device
         self.model = model
         self.mode = mode
+        # How long to wait for each frame of a reply. Chargers usually answer within 20 ms,
+        # but a busy N24 takes up to about 260 ms now and then.
+        self.read_timeout_ms = read_timeout_ms
 
         if self.model == 'auto' or self.mode == 'auto':
             if self.__device__ is not None:
@@ -148,7 +152,7 @@ class Charger:
             if captured_frames is None:
                 try:
                     frame_as_received: bytearray = bytearray(
-                        self.__device__.read(max_length=64, timeout_ms=200))
+                        self.__device__.read(max_length=64, timeout_ms=self.read_timeout_ms))
                 except OSError as e:  # While this seems useless, it reminds me it may raise
                     # exceptions on timeout.
                     raise e
@@ -324,7 +328,8 @@ class Charger:
 def get_device(model_name: str = 'auto', mode: str = 'auto',
                product_id: Optional[int] = None, vendor_id: Optional[int] = None,
                path: Optional[str] = None, host: Optional[str] = None,
-               port: Optional[int] = None) -> Charger:
+               port: Optional[int] = None,
+               read_timeout_ms: Optional[int] = None) -> Charger:
     """
     Looks for a charger, and returns the first one found. This deserves a little more
     sophistication. Both C4, and A4 share the same IDs. Additionally, the A4 identifies itself
@@ -338,6 +343,8 @@ def get_device(model_name: str = 'auto', mode: str = 'auto',
     :param host: Connect over TCP to a bridge on this host, instead of opening a local USB
     device. Mutually exclusive with path, product_id, and vendor_id.
     :param port: TCP port of the bridge. Defaults to 24000. Only used with host.
+    :param read_timeout_ms: How long to wait for each frame of a reply. Defaults to 200 ms over
+    USB, and 1000 ms over TCP, which adds the network to the charger's own delay.
     """
     if host is not None:
         if path is not None or product_id is not None or vendor_id is not None:
@@ -346,7 +353,11 @@ def get_device(model_name: str = 'auto', mode: str = 'auto',
     else:
         transport = UsbTransport(path=path, vendor_id=vendor_id, product_id=product_id)
 
-    return Charger(model=model_name, mode=mode, device=transport)
+    if read_timeout_ms is None:
+        read_timeout_ms = 1000 if host is not None else 200
+
+    return Charger(model=model_name, mode=mode, device=transport,
+                   read_timeout_ms=read_timeout_ms)
 
 
 def enumerate_devices(vendor_id: int = 0x28e9, product_id: int = 0x028a):
