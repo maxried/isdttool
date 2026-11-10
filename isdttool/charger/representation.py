@@ -63,11 +63,14 @@ def parse_packet(packet: bytearray, model: Optional[str]) -> \
         # discharging, storage, cycling, and analysis probably don't exist here.
         mode_strings.update({0: 'idling', 3: 'charging', 4: 'charged'})
 
-        # The N24 can't tell NiMH from NiCd, both are reported as 9. It rejects cells it
-        # refuses to charge with 6: alkalines, some NiCd, and full NiMH that were briefly
-        # disconnected. 4 is a gentle pre-charge with about 100 mA. Beware, alkalines can end
-        # up here, too. 0, and 2 were only seen on empty slots.
-        chemistry_strings.update({0: 'auto', 4: 'pre-charge', 6: 'rejected', 9: 'NiMH'})
+        # The battery type is the charger's own setting, for all slots: on Auto it charges
+        # nickel cells as NiMH (9), so NiCd also show up as 9; set to NiCd, they are reported
+        # as 8 (seen 2026-11-10). It rejects cells it refuses to charge with 6: alkalines,
+        # some NiCd, and full NiMH that were briefly disconnected. 4 is a gentle pre-charge
+        # with about 100 mA. Beware, alkalines can end up here, too. 0, and 2 were only seen
+        # on empty slots.
+        chemistry_strings.update({0: 'auto', 4: 'pre-charge', 6: 'rejected', 8: 'NiCd',
+                                  9: 'NiMH'})
 
         # The N24 doesn't distinguish AA from AAA.
         dimension_strings.update({1: 'AA(A)', 4: 'empty'})
