@@ -148,7 +148,7 @@ def get_argument_parser() -> ArgumentParser:
                         help='Enables protocol debugging.')
 
     parser.add_argument('--model', '-m', default='auto', type=str,
-                        choices=['auto', 'ignore', 'A4', 'C4', 'C4EVO', 'Q8'],
+                        choices=['auto', 'ignore', 'A4', 'C4', 'C4EVO', 'N24', 'Q8'],
                         help='Some commands return model specific data. Choose the correct model.')
 
     parser.add_argument('--running-in', '-r', default='auto', type=str,

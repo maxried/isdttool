@@ -110,6 +110,12 @@ def __generate_raw_frames__(payload: bytearray) -> List[bytearray]:
     return generated_frames
 
 
+# Some chargers report a model name that differs from the name on the box.
+MODEL_ALIASES = {
+    'NXHOSTP': 'N24',  # Seen on an N24 with app version 1.2.0.8.
+}
+
+
 class Charger:
     """Represents a charger. Basically only wraps an hid device, and supplies read/write
     functions. """
@@ -310,8 +316,9 @@ class Charger:
         link_test_result = parse_packet(self.read_packet(), 'ignore')
         self.version()
         version_result = parse_packet(self.read_packet(), 'ignore')
-        return version_result['model name'], ('boot loader'
-                                              if link_test_result['inside boot loader'] else 'app')
+        model_name = version_result['model name']
+        return MODEL_ALIASES.get(model_name, model_name), \
+            ('boot loader' if link_test_result['inside boot loader'] else 'app')
 
 
 def get_device(model_name: str = 'auto', mode: str = 'auto',

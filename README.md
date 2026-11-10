@@ -11,8 +11,9 @@ This software is not sponsored by ISDT, or anyone else. It was created by observ
 - DNT Smart PRO (which just is a rebranded ISDT C4 with old firmware)
 - ISDT C4EVO
 - ISDT Q8 (minimal support)
+- ISDT N24 (reports itself as "NXHOSTP"; metrics only, it does not answer `serial`)
 
-It should be compatible with other chargers by ISDT, at least the ones that are not primarily for charging LiPo. E.g. N8, or N24 should be compatible, but it's unknown if models like P20, or D1 work. It requires a USB connection. ISDT chargers with firmware upgrade capability should at least be detectable by this tool.
+It should be compatible with other chargers by ISDT, at least the ones that are not primarily for charging LiPo. E.g. N8 should be compatible, but it's unknown if models like P20, or D1 work. It requires a USB connection. ISDT chargers with firmware upgrade capability should at least be detectable by this tool.
 
 ## Installation
 
