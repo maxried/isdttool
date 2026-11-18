@@ -1,5 +1,7 @@
 # isdttool
 
+**Maintenance status:** This repository is no longer actively maintained and has been archived. For an actively developed fork, see [pallemannen/isdttool](https://github.com/pallemannen/isdttool), also published on PyPI as [isdttool-pal](https://pypi.org/project/isdttool-pal/).
+
 ## Important Notes
 This software is not sponsored by ISDT, or anyone else. It was created by observing the protocol between the updater, then the charger, and fuzzing the charger, and observing its behavior. Chargers are dangerous tools. You should never use them unattended. Batteries can leak, catch fire, etc. This tool comes with no warranties whatsoever. If bad things happen, I'm not responsible.
 
